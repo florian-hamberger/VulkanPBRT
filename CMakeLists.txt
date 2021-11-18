@@ -17,6 +17,7 @@ find_dependency(vsg_glslang)
 add_subdirectory(vsg)
 add_subdirectory(Denoiser)
 add_subdirectory(TAA)
+add_subdirectory(Terrain)
 set(IMGUI_HEADER
     vsg/src/imgui/)
 include_directories(vsg/include ${glslang_INCLUDE_DIRS} ${IMGUI_HEADER} ${OpenEXR_INCLUDE_DIRS})
@@ -26,7 +27,8 @@ file(GLOB SRC_TOP
        ${PROJECT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE SRC_NESTED
        ${PROJECT_SOURCE_DIR}/TAA/*.cpp
-	   ${PROJECT_SOURCE_DIR}/Denoiser/*.cpp)
+	   ${PROJECT_SOURCE_DIR}/Denoiser/*.cpp
+	   ${PROJECT_SOURCE_DIR}/Terrain/*.cpp)
 set(SRC ${SRC_TOP} ${SRC_NESTED})
 list(FILTER SRC EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/vsg/.*" )
 

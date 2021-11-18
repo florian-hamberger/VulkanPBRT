@@ -8,6 +8,8 @@
 #include "CountTrianglesVisitor.hpp"
 #include "gui.hpp"
 
+#include "Terrain/TerrainImporter.hpp"
+
 #include <vsgXchange/models.h>
 #include <vsgXchange/images.h>
 #include <vsg/all.h>
@@ -83,9 +85,10 @@ int main(int argc, char** argv){
 
         auto numFrames = arguments.value(-1, "-f");
         auto sceneFilename = arguments.value(std::string(), "-i");
-        if (sceneFilename.empty())
+        auto terrainFilename = arguments.value(std::string(), "-tr");
+        if (sceneFilename.empty() && terrainFilename.empty())
         {
-            std::cout << "Missing input parameter \"-i <path_to_model>\"." << std::endl;
+            std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-tr <path_to_terrain>\"." << std::endl;
         }
         if(arguments.read("m")) sceneFilename = "models/raytracing_scene.vsgt";
         if(arguments.errors()) return arguments.writeErrorMessages(std::cerr);
@@ -188,12 +191,23 @@ int main(int argc, char** argv){
         }
         
     	// load scene
-        auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create()); //using the assimp loader
-        vsg::ref_ptr<vsg::Node> loaded_scene = vsg::read_cast<vsg::Node>(sceneFilename, options);
-        if(!loaded_scene){
-            std::cout << "Scene not found: " << sceneFilename << std::endl;
-            return 1;
-        }        
+        vsg::ref_ptr<vsg::Node> loaded_scene;
+        if (!terrainFilename.empty()) {
+            auto terrainImporter = TerrainImporter::create();
+            loaded_scene = terrainImporter->importTerrain(terrainFilename);
+            if (!loaded_scene) {
+                std::cout << "Terrain not found: " << terrainFilename << std::endl;
+                return 1;
+            }
+        }
+        else {
+            auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create()); //using the assimp loader
+            loaded_scene = vsg::read_cast<vsg::Node>(sceneFilename, options);
+            if (!loaded_scene) {
+                std::cout << "Scene not found: " << sceneFilename << std::endl;
+                return 1;
+            }
+        }
 
         //create camera matrices
         auto perspective = vsg::Perspective::create(60, static_cast<double>(windowTraits->width) / static_cast<double>(windowTraits->height), .1, 1000);
