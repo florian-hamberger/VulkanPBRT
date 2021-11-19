@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vsg/all.h>
+#include <vsgXchange/models.h>
+#include <vsgXchange/images.h>
 
 //from vsgXchange/assimp/assimp.cpp
 struct Material
@@ -33,7 +35,8 @@ private:
     using StateCommandPtr = vsg::ref_ptr<vsg::StateCommand>;
     using State = std::pair<StateCommandPtr, StateCommandPtr>;
 
-    vsg::ref_ptr<vsg::Node> TerrainImporter::createTestScene();
+    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y, vsg::ref_ptr<vsg::ubvec4Array2D> heightmap);
+    vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4Array2D> heightmap);
     TerrainImporter::State TerrainImporter::createTestMaterial();
     vsg::mat4 TerrainImporter::createIdentityMatrix();
     std::string TerrainImporter::mat4ToString(vsg::mat4 m);
