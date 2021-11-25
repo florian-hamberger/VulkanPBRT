@@ -29,7 +29,11 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
     float heightmapValue = heightmap->data()[heightmap->index(x, y)].r;
     heightmapValue *= float(terrainMaxHeight) / 256.0f;
-    return vsg::vec3(x, heightmapValue, y) * terrainScale;
+    return vsg::vec3(x, heightmapValue, y) * terrainScale * 0.01f;
+}
+
+vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
+    return vsg::vec2(float(x) / float(heightmap->width()), float(y) / float(heightmap->height()));
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
@@ -91,22 +95,22 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
         for (int y = 0; y < height-1; y++) {
             for (int x = 0; x < width-1; x++) {
                 vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y);
-                texcoords->at(currentVertexIndex) = vsg::vec2(x, y) / float(width);
+                texcoords->at(currentVertexIndex) = getTextureCoordinate(x, y);
                 vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x, y + 1);
-                texcoords->at(currentVertexIndex + 1) = vsg::vec2(x, y + 1) / float(width);
+                texcoords->at(currentVertexIndex + 1) = getTextureCoordinate(x, y + 1);
                 vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(x + 1, y);
-                texcoords->at(currentVertexIndex + 2) = vsg::vec2(x + 1, y) / float(width);
+                texcoords->at(currentVertexIndex + 2) = getTextureCoordinate(x + 1, y);
                 indices.push_back(currentVertexIndex);
                 indices.push_back(currentVertexIndex + 1);
                 indices.push_back(currentVertexIndex + 2);
                 currentVertexIndex += 3;
 
                 vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y + 1);
-                texcoords->at(currentVertexIndex) = vsg::vec2(x, y + 1) / float(width);
+                texcoords->at(currentVertexIndex) = getTextureCoordinate(x, y + 1);
                 vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x + 1, y + 1);
-                texcoords->at(currentVertexIndex + 1) = vsg::vec2(x + 1, y + 1) / float(width);
+                texcoords->at(currentVertexIndex + 1) = getTextureCoordinate(x + 1, y + 1);
                 vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(x + 1, y);
-                texcoords->at(currentVertexIndex + 2) = vsg::vec2(x + 1, y) / float(width);
+                texcoords->at(currentVertexIndex + 2) = getTextureCoordinate(x + 1, y);
                 indices.push_back(currentVertexIndex);
                 indices.push_back(currentVertexIndex + 1);
                 indices.push_back(currentVertexIndex + 2);

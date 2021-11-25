@@ -66,6 +66,7 @@ private:
     vsg::ref_ptr<vsg::Data> texture;
 
     vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y);
+    vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);
     vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
     TerrainImporter::State TerrainImporter::createTestMaterial();
     TerrainImporter::State TerrainImporter::loadTextureMaterials();
