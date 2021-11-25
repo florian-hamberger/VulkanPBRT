@@ -86,9 +86,10 @@ int main(int argc, char** argv){
         auto numFrames = arguments.value(-1, "-f");
         auto sceneFilename = arguments.value(std::string(), "-i");
         auto terrainFilename = arguments.value(std::string(), "-tr");
+        auto terrainTextureFilename = arguments.value(std::string(), "-tx");
         if (sceneFilename.empty() && terrainFilename.empty())
         {
-            std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-tr <path_to_terrain>\"." << std::endl;
+            std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-tr <path_to_terrain> -tx <path_to_texture>\"." << std::endl;
         }
         if(arguments.read("m")) sceneFilename = "models/raytracing_scene.vsgt";
         if(arguments.errors()) return arguments.writeErrorMessages(std::cerr);
@@ -194,7 +195,7 @@ int main(int argc, char** argv){
         vsg::ref_ptr<vsg::Node> loaded_scene;
         if (!terrainFilename.empty()) {
             auto terrainImporter = TerrainImporter::create();
-            loaded_scene = terrainImporter->importTerrain(terrainFilename);
+            loaded_scene = terrainImporter->importTerrain(terrainFilename, terrainTextureFilename);
             if (!loaded_scene) {
                 std::cout << "Terrain not found: " << terrainFilename << std::endl;
                 return 1;

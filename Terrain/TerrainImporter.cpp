@@ -4,9 +4,9 @@ TerrainImporter::TerrainImporter() {
 
 }
 
-vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain(const vsg::Path& filename) {
+vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain(const vsg::Path& heightmapPath, const vsg::Path& texturePath) {
     auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create(), vsgXchange::openexr::create());
-    auto heightmapData = vsg::read_cast<vsg::Data>(filename, options);
+    auto heightmapData = vsg::read_cast<vsg::Data>(heightmapPath, options);
     if (!heightmapData.valid()) {
         std::cout << "error loading" << std::endl;
     }
@@ -16,13 +16,20 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain(const vsg::Path& filename
         std::cout << "wrong format" << std::endl;
     }
 
-    auto terrain = createGeometry(heightmap);
+    auto texture = vsg::read_cast<vsg::Data>(texturePath, options);
+    if (!texture.valid()) {
+        std::cout << "error loading" << std::endl;
+    }
+
+    auto terrain = createGeometry(heightmap, texture);
     return terrain;
 }
 
 vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int u, int v, vsg::ref_ptr<vsg::ubvec4Array2D> heightmap) {
     float scale = 0.1f;
-    float maxHeight = 10.0f;
+
+    float heightScale = 0.2f;
+    float maxHeight = heightScale * heightmap->width();
 
     float heightmapValue = heightmap->data()[heightmap->index(u, v)].r;
     heightmapValue *= maxHeight / 256.0f;
@@ -30,11 +37,12 @@ vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int u, int v, vsg::ref_ptr
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
-vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4Array2D> heightmap)
+vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4Array2D> heightmap, vsg::ref_ptr<vsg::Data> texture)
 {
     //auto pipelineLayout = _defaultPipeline->layout;
 
-    auto state = createTestMaterial();
+    //auto state = createTestMaterial();
+    auto state = loadTextureMaterials(texture);
 
     auto root = vsg::MatrixTransform::create();
 
@@ -87,16 +95,22 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4
         for (int v = 0; v < height-1; v++) {
             for (int u = 0; u < width-1; u++) {
                 vertices->at(currentVertexIndex) = getHeightmapVertexPosition(u, v, heightmap);
+                texcoords->at(currentVertexIndex) = vsg::vec2(u, v) / float(width);
                 vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(u, v + 1, heightmap);
+                texcoords->at(currentVertexIndex + 1) = vsg::vec2(u, v + 1) / float(width);
                 vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(u + 1, v, heightmap);
+                texcoords->at(currentVertexIndex + 2) = vsg::vec2(u + 1, v) / float(width);
                 indices.push_back(currentVertexIndex);
                 indices.push_back(currentVertexIndex + 1);
                 indices.push_back(currentVertexIndex + 2);
                 currentVertexIndex += 3;
 
                 vertices->at(currentVertexIndex) = getHeightmapVertexPosition(u, v + 1, heightmap);
+                texcoords->at(currentVertexIndex) = vsg::vec2(u, v + 1) / float(width);
                 vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(u + 1, v + 1, heightmap);
+                texcoords->at(currentVertexIndex + 1) = vsg::vec2(u + 1, v + 1) / float(width);
                 vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(u + 1, v, heightmap);
+                texcoords->at(currentVertexIndex + 2) = vsg::vec2(u + 1, v) / float(width);
                 indices.push_back(currentVertexIndex);
                 indices.push_back(currentVertexIndex + 1);
                 indices.push_back(currentVertexIndex + 2);
@@ -107,7 +121,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4
         for (int j = 0; j < mNumVertices; ++j)
         {
             normals->at(j) = vsg::vec3(0, 0, 0);
-            texcoords->at(j) = vsg::vec2(0, 0);
+            //texcoords->at(j) = vsg::vec2(0, 0);
         }
 
         vsg::ref_ptr<vsg::Data> vsg_indices;
@@ -128,7 +142,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4
         auto stategroup = vsg::StateGroup::create();
         xform->addChild(stategroup);
 
-        //stategroup->add(state.first);
+        stategroup->add(state.first);
         stategroup->add(state.second);
 
         auto vid = vsg::VertexIndexDraw::create();
@@ -147,7 +161,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4
 //using code from vsgXchange/assimp/assimp.cpp
 TerrainImporter::State TerrainImporter::createTestMaterial()
 {
-    
+
     Material mat;
 
     mat.alphaMaskCutoff = 0.5f;
@@ -159,7 +173,7 @@ TerrainImporter::State TerrainImporter::createTestMaterial()
     if (mat.shininess < 0.01f)
     {
         mat.shininess = 0.0f;
-        mat.specular = {0.0f, 0.0f, 0.0f, 0.0f};
+        mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
     }
 
     vsg::DescriptorSetLayoutBindings descriptorBindings{
@@ -174,6 +188,139 @@ TerrainImporter::State TerrainImporter::createTestMaterial()
 
     auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
     auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, vsg::PipelineLayout::create(), 0, descriptorSet);
+
+    return { vsg::BindGraphicsPipeline::create(pipeline), bindDescriptorSet };
+}
+
+//using code from vsgXchange/assimp/assimp.cpp
+TerrainImporter::State TerrainImporter::loadTextureMaterials(vsg::ref_ptr<vsg::Data> texture)
+{
+
+    auto getWrapMode = [](aiTextureMapMode mode) {
+        switch (mode)
+        {
+        case aiTextureMapMode_Wrap: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case aiTextureMapMode_Clamp: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case aiTextureMapMode_Decal: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case aiTextureMapMode_Mirror: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        default: break;
+        }
+        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    };
+
+    auto getTexture = [&](std::vector<std::string>& defines) -> vsg::SamplerImage {
+        std::array<aiTextureMapMode, 3> wrapMode{ {aiTextureMapMode_Wrap, aiTextureMapMode_Wrap, aiTextureMapMode_Wrap} };
+
+        vsg::SamplerImage samplerImage;
+
+        //std::string texPath;
+        //if (texPath.data[0] == '*')
+        //{
+        //    const auto texIndex = std::atoi(texPath.C_Str() + 1);
+        //    const auto texture = scene->mTextures[texIndex];
+
+        //    //qCDebug(lc) << "Handle embedded texture" << texPath.C_Str() << texIndex << texture->achFormatHint << texture->mWidth << texture->mHeight;
+
+        //    if (texture->mWidth > 0 && texture->mHeight == 0)
+        //    {
+        //        auto imageOptions = vsg::Options::create(*options);
+        //        imageOptions->extensionHint = texture->achFormatHint;
+        //        if (samplerImage.data = vsg::read_cast<vsg::Data>(reinterpret_cast<const uint8_t*>(texture->pcData), texture->mWidth, imageOptions); !samplerImage.data.valid())
+        //            return {};
+        //    }
+        //}
+        //else
+        //{
+            //const std::string filename = vsg::findFile(texPath, options);
+            //const std::string filename = "C:/Users/Flori/Projects/TUM/7-WS21/BT/VulkanPBRT/out/build/x64-Debug/heightmaps/hm_65.png";
+
+            auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create(), vsgXchange::openexr::create());
+            samplerImage.data = texture;
+
+            //if (samplerImage.data = vsg::read_cast<vsg::Data>(filename, options); !samplerImage.data.valid())
+            //{
+            //    //std::cerr << "Failed to load texture: " << filename << " texPath = " << texPath << std::endl;
+            //    std::cerr << "Failed to load texture: " << filename << std::endl;
+            //    return {};
+            //}
+        //}
+
+        defines.push_back("VSG_DIFFUSE_MAP");
+
+        samplerImage.sampler = vsg::Sampler::create();
+
+        samplerImage.sampler->addressModeU = getWrapMode(wrapMode[0]);
+        samplerImage.sampler->addressModeV = getWrapMode(wrapMode[1]);
+        samplerImage.sampler->addressModeW = getWrapMode(wrapMode[2]);
+
+        samplerImage.sampler->anisotropyEnable = VK_TRUE;
+        samplerImage.sampler->maxAnisotropy = 16.0f;
+
+        samplerImage.sampler->maxLod = samplerImage.data->getLayout().maxNumMipmaps;
+
+        if (samplerImage.sampler->maxLod <= 1.0)
+        {
+            //                if (texPath.length > 0)
+            //                    std::cout << "Auto generating mipmaps for texture: " << scene.GetShortFilename(texPath.C_Str()) << std::endl;;
+
+            // Calculate maximum lod level
+            auto maxDim = std::max(samplerImage.data->width(), samplerImage.data->height());
+            samplerImage.sampler->maxLod = std::floor(std::log2f(static_cast<float>(maxDim)));
+        }
+
+        return samplerImage;
+    };
+
+    //const auto material = scene->mMaterials[i];
+
+    // Phong shading
+    Material mat;
+    std::vector<std::string> defines;
+
+
+    mat.alphaMaskCutoff = 0.5f;
+    mat.ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
+    mat.diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+    mat.emissive = { 0.0f, 0.0f, 0.0f, 0.0f };
+    mat.shininess = 0.0f;
+    mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+    if (mat.shininess < 0.01f)
+    {
+        mat.shininess = 0.0f;
+        mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+    }
+
+    bool isTwoSided{ false };
+
+    vsg::DescriptorSetLayoutBindings descriptorBindings{
+        {10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} };
+    vsg::Descriptors descList;
+
+    vsg::SamplerImage samplerImage;
+    if (samplerImage = getTexture(defines); samplerImage.data.valid())
+    {
+        auto diffuseTexture = vsg::DescriptorImage::create(samplerImage, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        descList.push_back(diffuseTexture);
+        descriptorBindings.push_back({ 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+
+        //if (diffuseResult != AI_SUCCESS)
+        //    mat.diffuse = aiColor4D{ 1.0f, 1.0f, 1.0f, 1.0f };
+    }
+
+    auto buffer = vsg::DescriptorBuffer::create(mat.toData(), 10);
+    descList.push_back(buffer);
+
+    auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+    //auto vertexShader = vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", processGLSLShaderSource(assimp_vertex, defines));
+    //auto fragmentShader = vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", processGLSLShaderSource(assimp_phong, defines));
+
+    //auto pipeline = createPipeline(vertexShader, fragmentShader, descriptorSetLayout, isTwoSided);
+    vsg::ref_ptr<vsg::GraphicsPipeline> pipeline = vsg::GraphicsPipeline::create();
+    vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout = vsg::PipelineLayout::create();
+
+    auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
+    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
 
     return { vsg::BindGraphicsPipeline::create(pipeline), bindDescriptorSet };
 }
