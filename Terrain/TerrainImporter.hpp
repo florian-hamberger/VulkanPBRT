@@ -23,6 +23,26 @@ struct Material
     }
 };
 
+struct PbrMaterial
+{
+    vsg::vec4 baseColorFactor{ 1.0, 1.0, 1.0, 1.0 };
+    vsg::vec4 emissiveFactor{ 0.0, 0.0, 0.0, 1.0 };
+    vsg::vec4 diffuseFactor{ 1.0, 1.0, 1.0, 1.0 };
+    vsg::vec4 specularFactor{ 0.0, 0.0, 0.0, 1.0 };
+    float metallicFactor{ 1.0f };
+    float roughnessFactor{ 1.0f };
+    float alphaMask{ 1.0f };
+    float alphaMaskCutoff{ 0.5f };
+    float indexOfRefraction{ 1.0f };
+
+    vsg::ref_ptr<vsg::Data> toData()
+    {
+        auto buffer = vsg::ubyteArray::create(sizeof(PbrMaterial));
+        std::memcpy(buffer->data(), &baseColorFactor.r, sizeof(PbrMaterial));
+        return buffer;
+    }
+};
+
 enum aiTextureMapMode
 {
     /** A texture coordinate u|v is translated to u%1|v%1

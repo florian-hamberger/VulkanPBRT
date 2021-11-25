@@ -208,7 +208,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
         return VK_SAMPLER_ADDRESS_MODE_REPEAT;
     };
 
-    auto getTexture = [&](std::vector<std::string>& defines) -> vsg::SamplerImage {
+    auto getTexture = [&]() -> vsg::SamplerImage {
         std::array<aiTextureMapMode, 3> wrapMode{ {aiTextureMapMode_Wrap, aiTextureMapMode_Wrap, aiTextureMapMode_Wrap} };
 
         vsg::SamplerImage samplerImage;
@@ -245,7 +245,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
             //}
         //}
 
-        defines.push_back("VSG_DIFFUSE_MAP");
+        //defines.push_back("VSG_DIFFUSE_MAP");
 
         samplerImage.sampler = vsg::Sampler::create();
 
@@ -273,56 +273,138 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
 
     //const auto material = scene->mMaterials[i];
 
-    // Phong shading
-    Material mat;
-    std::vector<std::string> defines;
-
-
-    mat.alphaMaskCutoff = 0.5f;
-    mat.ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
-    mat.diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-    mat.emissive = { 0.0f, 0.0f, 0.0f, 0.0f };
-    mat.shininess = 0.0f;
-    mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-    if (mat.shininess < 0.01f)
+    bool isPbrMaterial = true;
+    if (isPbrMaterial)
     {
+        // PBR path
+        PbrMaterial pbr;
+
+        //std::vector<std::string> defines;
+        //bool isTwoSided{ true };
+
+        bool hasPbrSpecularGlossiness = true;
+
+        //pbr.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
+        pbr.baseColorFactor = { 0.2, 0.2, 0.2, 1.0 };
+        pbr.emissiveFactor = { 0.0, 0.0, 0.0, 1.0 };
+        pbr.diffuseFactor = { 0.0, 0.0, 0.0, 1.0 };
+        //pbr.diffuseFactor = { 1.0, 1.0, 1.0, 1.0 };
+        pbr.specularFactor = { 0.0, 0.0, 0.0, 1.0 };
+        //pbr.specularFactor = { 1.0, 1.0, 1.0, 1.0 };
+
+        pbr.metallicFactor = 1.0f;
+        pbr.roughnessFactor = 1.0f;
+        pbr.alphaMask = 1.0f;
+        pbr.alphaMaskCutoff = 0.5f;
+        pbr.indexOfRefraction = 1.0f;
+
+        if (hasPbrSpecularGlossiness)
+        {
+            //defines.push_back("VSG_WORKFLOW_SPECGLOSS");
+            //material->Get(AI_MATKEY_COLOR_DIFFUSE, pbr.diffuseFactor);
+            //material->Get(AI_MATKEY_COLOR_SPECULAR, pbr.specularFactor);
+
+            //if (material->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_GLOSSINESS_FACTOR, pbr.specularFactor.a) != AI_SUCCESS)
+            //{
+            //    if (float shininess; material->Get(AI_MATKEY_SHININESS, shininess))
+            //        pbr.specularFactor.a = shininess / 1000;
+            //}
+        }
+        else
+        {
+            //material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR, pbr.metallicFactor);
+            //material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR, pbr.roughnessFactor);
+        }
+
+        //material->Get(AI_MATKEY_COLOR_EMISSIVE, pbr.emissiveFactor);
+        //material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, pbr.alphaMaskCutoff);
+        //material->Get(AI_MATKEY_REFRACTI, pbr.indexOfRefraction);
+
+        //if (isTwoSided)
+            //defines.push_back("VSG_TWOSIDED");
+
+        vsg::DescriptorSetLayoutBindings descriptorBindings{
+            {10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} };
+        vsg::Descriptors descList;
+
+        auto buffer = vsg::DescriptorBuffer::create(pbr.toData(), 10);
+        descList.push_back(buffer);
+
+        vsg::SamplerImage samplerImage;
+        if (samplerImage = getTexture(); samplerImage.data.valid())
+        {
+            auto diffuseTexture = vsg::DescriptorImage::create(samplerImage, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            descList.push_back(diffuseTexture);
+            descriptorBindings.push_back({ 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+        }
+
+        auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
+
+        /*auto vertexShader = vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", processGLSLShaderSource(assimp_vertex, defines));
+        auto fragmentShader = vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", processGLSLShaderSource(assimp_pbr, defines));*/
+
+        //auto pipeline = createPipeline(vertexShader, fragmentShader, descriptorSetLayout, isTwoSided);
+        vsg::ref_ptr<vsg::GraphicsPipeline> pipeline = vsg::GraphicsPipeline::create();
+        vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout = vsg::PipelineLayout::create();
+
+        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
+
+        return { vsg::BindGraphicsPipeline::create(pipeline), bindDescriptorSet };
+    }
+    else
+    {
+        // Phong shading
+        Material mat;
+        //std::vector<std::string> defines;
+
+
+        mat.alphaMaskCutoff = 0.5f;
+        mat.ambient = { 0.1f, 0.1f, 0.1f, 1.0f };
+        mat.diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+        mat.emissive = { 0.0f, 0.0f, 0.0f, 0.0f };
         mat.shininess = 0.0f;
         mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+        if (mat.shininess < 0.01f)
+        {
+            mat.shininess = 0.0f;
+            mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+        }
+
+        //bool isTwoSided{ false };
+
+        vsg::DescriptorSetLayoutBindings descriptorBindings{
+            {10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} };
+        vsg::Descriptors descList;
+
+        vsg::SamplerImage samplerImage;
+        if (samplerImage = getTexture(); samplerImage.data.valid())
+        {
+            auto diffuseTexture = vsg::DescriptorImage::create(samplerImage, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            descList.push_back(diffuseTexture);
+            descriptorBindings.push_back({ 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+
+            //if (diffuseResult != AI_SUCCESS)
+            //    mat.diffuse = aiColor4D{ 1.0f, 1.0f, 1.0f, 1.0f };
+        }
+
+        auto buffer = vsg::DescriptorBuffer::create(mat.toData(), 10);
+        descList.push_back(buffer);
+
+        auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+        //auto vertexShader = vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", processGLSLShaderSource(assimp_vertex, defines));
+        //auto fragmentShader = vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", processGLSLShaderSource(assimp_phong, defines));
+
+        //auto pipeline = createPipeline(vertexShader, fragmentShader, descriptorSetLayout, isTwoSided);
+        vsg::ref_ptr<vsg::GraphicsPipeline> pipeline = vsg::GraphicsPipeline::create();
+        vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout = vsg::PipelineLayout::create();
+
+        auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
+        auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
+
+        return { vsg::BindGraphicsPipeline::create(pipeline), bindDescriptorSet };
     }
-
-    bool isTwoSided{ false };
-
-    vsg::DescriptorSetLayoutBindings descriptorBindings{
-        {10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} };
-    vsg::Descriptors descList;
-
-    vsg::SamplerImage samplerImage;
-    if (samplerImage = getTexture(defines); samplerImage.data.valid())
-    {
-        auto diffuseTexture = vsg::DescriptorImage::create(samplerImage, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        descList.push_back(diffuseTexture);
-        descriptorBindings.push_back({ 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
-
-        //if (diffuseResult != AI_SUCCESS)
-        //    mat.diffuse = aiColor4D{ 1.0f, 1.0f, 1.0f, 1.0f };
-    }
-
-    auto buffer = vsg::DescriptorBuffer::create(mat.toData(), 10);
-    descList.push_back(buffer);
-
-    auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-    //auto vertexShader = vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", processGLSLShaderSource(assimp_vertex, defines));
-    //auto fragmentShader = vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", processGLSLShaderSource(assimp_phong, defines));
-
-    //auto pipeline = createPipeline(vertexShader, fragmentShader, descriptorSetLayout, isTwoSided);
-    vsg::ref_ptr<vsg::GraphicsPipeline> pipeline = vsg::GraphicsPipeline::create();
-    vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout = vsg::PipelineLayout::create();
-
-    auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
-    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet);
-
-    return { vsg::BindGraphicsPipeline::create(pipeline), bindDescriptorSet };
 }
 
 vsg::mat4 TerrainImporter::createIdentityMatrix() {
