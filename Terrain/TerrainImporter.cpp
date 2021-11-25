@@ -159,40 +159,6 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
-TerrainImporter::State TerrainImporter::createTestMaterial()
-{
-
-    Material mat;
-
-    mat.alphaMaskCutoff = 0.5f;
-    mat.ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
-    mat.diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-    mat.emissive = { 0.0f, 0.0f, 0.0f, 0.0f };
-    mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-    if (mat.shininess < 0.01f)
-    {
-        mat.shininess = 0.0f;
-        mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
-    }
-
-    vsg::DescriptorSetLayoutBindings descriptorBindings{
-        {10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} };
-    vsg::Descriptors descList;
-
-    auto buffer = vsg::DescriptorBuffer::create(mat.toData(), 10);
-    descList.push_back(buffer);
-
-    auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-    vsg::ref_ptr<vsg::GraphicsPipeline> pipeline = vsg::GraphicsPipeline::create();
-
-    auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
-    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, vsg::PipelineLayout::create(), 0, descriptorSet);
-
-    return { vsg::BindGraphicsPipeline::create(pipeline), bindDescriptorSet };
-}
-
-//using code from vsgXchange/assimp/assimp.cpp
 TerrainImporter::State TerrainImporter::loadTextureMaterials()
 {
 
