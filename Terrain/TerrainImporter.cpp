@@ -29,7 +29,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
     float heightmapValue = heightmap->data()[heightmap->index(x, y)].r;
     heightmapValue *= float(terrainMaxHeight) / 256.0f;
-    return vsg::vec3(x, heightmapValue, y) * terrainScale * 0.01f;
+    return vsg::vec3(float(x), heightmapValue, float(y)) * terrainScale * 0.01f;
 }
 
 vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
@@ -250,13 +250,13 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
 
         bool hasPbrSpecularGlossiness = true;
 
-        //pbr.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
-        pbr.baseColorFactor = { 0.2, 0.2, 0.2, 1.0 };
-        pbr.emissiveFactor = { 0.0, 0.0, 0.0, 1.0 };
-        pbr.diffuseFactor = { 0.0, 0.0, 0.0, 1.0 };
-        //pbr.diffuseFactor = { 1.0, 1.0, 1.0, 1.0 };
-        pbr.specularFactor = { 0.0, 0.0, 0.0, 1.0 };
-        //pbr.specularFactor = { 1.0, 1.0, 1.0, 1.0 };
+        //pbr.baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        pbr.baseColorFactor = { 0.2f, 0.2f, 0.2f, 1.0f };
+        pbr.emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        pbr.diffuseFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        //pbr.diffuseFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        pbr.specularFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        //pbr.specularFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
         pbr.metallicFactor = 1.0f;
         pbr.roughnessFactor = 1.0f;
