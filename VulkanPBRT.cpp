@@ -11,6 +11,8 @@
 #include "UtilityPipelines/FormatConverter.hpp"
 #include "UtilityPipelines/Accumulator.hpp"
 
+#include "Terrain/TerrainImporter.hpp"
+
 #include <vsgXchange/models.h>
 #include <vsgXchange/images.h>
 #include <vsg/all.h>
@@ -94,9 +96,15 @@ int main(int argc, char** argv){
         auto matricesPath = arguments.value(std::string(), "--matrices");
         auto sceneFilename = arguments.value(std::string(), "-i");
         bool externalRenderings = normalImages.size();
-        if (sceneFilename.empty() && !externalRenderings)
+
+        auto terrainFilename = arguments.value(std::string(), "-tr");
+        auto terrainTextureFilename = arguments.value(std::string(), "-tx");
+        auto terrainScale = arguments.value(1.0f, "--terrain-scale");
+        auto terrainMaxHeight = arguments.value(100, "--terrain-max-height"); // max terrain height in pixels
+
+        if (sceneFilename.empty() && !externalRenderings && terrainFilename.empty())
         {
-            std::cout << "Missing input parameter \"-i <path_to_model>\"." << std::endl;
+            std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-tr <path_to_terrain> -tx <path_to_texture>\"." << std::endl;
         }
         if(arguments.read("m")) sceneFilename = "models/raytracing_scene.vsgt";
         if(arguments.errors()) return arguments.writeErrorMessages(std::cerr);
@@ -139,15 +147,21 @@ int main(int argc, char** argv){
         std::vector<vsg::ref_ptr<OfflineGBuffer>> offlineGBuffers;
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
-        if(!externalRenderings){
+        if (!terrainFilename.empty()) {
+            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight);
+            loaded_scene = terrainImporter->importTerrain();
+            if (!loaded_scene) {
+                std::cout << "Terrain not found: " << terrainFilename << std::endl;
+                return 1;
+            }
+        } else if(!externalRenderings){
             auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create()); //using the assimp loader
             loaded_scene = vsg::read_cast<vsg::Node>(sceneFilename, options);
             if(!loaded_scene){
                 std::cout << "Scene not found: " << sceneFilename << std::endl;
                 return 1;
             }
-        }
-        else{
+        } else {
             if(numFrames <= 0){
                 std::cout << "No number of frames given. For usage of external GBuffer and Illumination information use \"-f\" to inform about the number of frames." << std::endl;
                 return 1;
