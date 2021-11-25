@@ -1,48 +1,44 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter() {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainMaxHeight(terrainMaxHeight) {
 
 }
 
-vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain(const vsg::Path& heightmapPath, const vsg::Path& texturePath) {
+vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
     auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create(), vsgXchange::openexr::create());
     auto heightmapData = vsg::read_cast<vsg::Data>(heightmapPath, options);
     if (!heightmapData.valid()) {
         std::cout << "error loading" << std::endl;
     }
 
-    vsg::ref_ptr<vsg::ubvec4Array2D> heightmap = heightmapData.cast<vsg::ubvec4Array2D>();
+    heightmap = heightmapData.cast<vsg::ubvec4Array2D>();
     if (!heightmap) {
         std::cout << "wrong format" << std::endl;
     }
 
-    auto texture = vsg::read_cast<vsg::Data>(texturePath, options);
+    texture = vsg::read_cast<vsg::Data>(texturePath, options);
     if (!texture.valid()) {
         std::cout << "error loading" << std::endl;
     }
 
-    auto terrain = createGeometry(heightmap, texture);
+    auto terrain = createGeometry();
     return terrain;
 }
 
-vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int u, int v, vsg::ref_ptr<vsg::ubvec4Array2D> heightmap) {
-    float scale = 0.1f;
-
-    float heightScale = 0.2f;
-    float maxHeight = heightScale * heightmap->width();
-
-    float heightmapValue = heightmap->data()[heightmap->index(u, v)].r;
-    heightmapValue *= maxHeight / 256.0f;
-    return vsg::vec3(u, heightmapValue, v) * scale;
+vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
+    float heightmapValue = heightmap->data()[heightmap->index(x, y)].r;
+    heightmapValue *= float(terrainMaxHeight) / 256.0f;
+    return vsg::vec3(x, heightmapValue, y) * terrainScale;
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
-vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4Array2D> heightmap, vsg::ref_ptr<vsg::Data> texture)
+vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 {
     //auto pipelineLayout = _defaultPipeline->layout;
 
     //auto state = createTestMaterial();
-    auto state = loadTextureMaterials(texture);
+    auto state = loadTextureMaterials();
 
     auto root = vsg::MatrixTransform::create();
 
@@ -92,25 +88,25 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4
 
 
         int currentVertexIndex = 0;
-        for (int v = 0; v < height-1; v++) {
-            for (int u = 0; u < width-1; u++) {
-                vertices->at(currentVertexIndex) = getHeightmapVertexPosition(u, v, heightmap);
-                texcoords->at(currentVertexIndex) = vsg::vec2(u, v) / float(width);
-                vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(u, v + 1, heightmap);
-                texcoords->at(currentVertexIndex + 1) = vsg::vec2(u, v + 1) / float(width);
-                vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(u + 1, v, heightmap);
-                texcoords->at(currentVertexIndex + 2) = vsg::vec2(u + 1, v) / float(width);
+        for (int y = 0; y < height-1; y++) {
+            for (int x = 0; x < width-1; x++) {
+                vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y);
+                texcoords->at(currentVertexIndex) = vsg::vec2(x, y) / float(width);
+                vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x, y + 1);
+                texcoords->at(currentVertexIndex + 1) = vsg::vec2(x, y + 1) / float(width);
+                vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(x + 1, y);
+                texcoords->at(currentVertexIndex + 2) = vsg::vec2(x + 1, y) / float(width);
                 indices.push_back(currentVertexIndex);
                 indices.push_back(currentVertexIndex + 1);
                 indices.push_back(currentVertexIndex + 2);
                 currentVertexIndex += 3;
 
-                vertices->at(currentVertexIndex) = getHeightmapVertexPosition(u, v + 1, heightmap);
-                texcoords->at(currentVertexIndex) = vsg::vec2(u, v + 1) / float(width);
-                vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(u + 1, v + 1, heightmap);
-                texcoords->at(currentVertexIndex + 1) = vsg::vec2(u + 1, v + 1) / float(width);
-                vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(u + 1, v, heightmap);
-                texcoords->at(currentVertexIndex + 2) = vsg::vec2(u + 1, v) / float(width);
+                vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y + 1);
+                texcoords->at(currentVertexIndex) = vsg::vec2(x, y + 1) / float(width);
+                vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x + 1, y + 1);
+                texcoords->at(currentVertexIndex + 1) = vsg::vec2(x + 1, y + 1) / float(width);
+                vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(x + 1, y);
+                texcoords->at(currentVertexIndex + 2) = vsg::vec2(x + 1, y) / float(width);
                 indices.push_back(currentVertexIndex);
                 indices.push_back(currentVertexIndex + 1);
                 indices.push_back(currentVertexIndex + 2);
@@ -193,7 +189,7 @@ TerrainImporter::State TerrainImporter::createTestMaterial()
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
-TerrainImporter::State TerrainImporter::loadTextureMaterials(vsg::ref_ptr<vsg::Data> texture)
+TerrainImporter::State TerrainImporter::loadTextureMaterials()
 {
 
     auto getWrapMode = [](aiTextureMapMode mode) {

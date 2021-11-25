@@ -87,6 +87,8 @@ int main(int argc, char** argv){
         auto sceneFilename = arguments.value(std::string(), "-i");
         auto terrainFilename = arguments.value(std::string(), "-tr");
         auto terrainTextureFilename = arguments.value(std::string(), "-tx");
+        auto terrainScale = arguments.value(1.0f, "--terrain-scale");
+        auto terrainMaxHeight = arguments.value(100, "--terrain-max-height"); // max terrain height in pixels
         if (sceneFilename.empty() && terrainFilename.empty())
         {
             std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-tr <path_to_terrain> -tx <path_to_texture>\"." << std::endl;
@@ -194,8 +196,8 @@ int main(int argc, char** argv){
     	// load scene
         vsg::ref_ptr<vsg::Node> loaded_scene;
         if (!terrainFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create();
-            loaded_scene = terrainImporter->importTerrain(terrainFilename, terrainTextureFilename);
+            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight);
+            loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
                 std::cout << "Terrain not found: " << terrainFilename << std::endl;
                 return 1;

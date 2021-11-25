@@ -49,19 +49,26 @@ enum aiTextureMapMode
 class TerrainImporter : public vsg::Inherit<vsg::Object, TerrainImporter>
 {
 public:
-    TerrainImporter();
+    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight);
 
-    vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain(const vsg::Path& heightmapPath, const vsg::Path& texturePath);
+    vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain();
 
 private:
     using StateCommandPtr = vsg::ref_ptr<vsg::StateCommand>;
     using State = std::pair<StateCommandPtr, StateCommandPtr>;
     using BindState = std::vector<State>;
 
-    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y, vsg::ref_ptr<vsg::ubvec4Array2D> heightmap);
-    vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry(vsg::ref_ptr<vsg::ubvec4Array2D> heightmap, vsg::ref_ptr<vsg::Data> texture);
+    const vsg::Path& heightmapPath, texturePath;
+    float terrainScale;
+    uint32_t terrainMaxHeight;
+
+    vsg::ref_ptr<vsg::ubvec4Array2D> heightmap;
+    vsg::ref_ptr<vsg::Data> texture;
+
+    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y);
+    vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
     TerrainImporter::State TerrainImporter::createTestMaterial();
-    TerrainImporter::State TerrainImporter::loadTextureMaterials(vsg::ref_ptr<vsg::Data> texture);
+    TerrainImporter::State TerrainImporter::loadTextureMaterials();
     vsg::mat4 TerrainImporter::createIdentityMatrix();
     std::string TerrainImporter::mat4ToString(vsg::mat4 m);
 };
