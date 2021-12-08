@@ -14,6 +14,7 @@ struct Material
     float shininess{ 0.0f };
     float alphaMask{ 1.0 };
     float alphaMaskCutoff{ 0.5 };
+    uint32_t category_id{ 0 };
 
     vsg::ref_ptr<vsg::Data> toData()
     {
@@ -34,6 +35,7 @@ struct PbrMaterial
     float alphaMask{ 1.0f };
     float alphaMaskCutoff{ 0.5f };
     float indexOfRefraction{ 1.0f };
+    uint32_t category_id{ 0 };
 
     vsg::ref_ptr<vsg::Data> toData()
     {

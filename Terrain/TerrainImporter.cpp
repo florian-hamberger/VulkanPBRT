@@ -263,6 +263,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
         pbr.alphaMask = 1.0f;
         pbr.alphaMaskCutoff = 0.5f;
         pbr.indexOfRefraction = 1.0f;
+        pbr.category_id = 0;
 
         if (hasPbrSpecularGlossiness)
         {
@@ -331,6 +332,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
         mat.emissive = { 0.0f, 0.0f, 0.0f, 0.0f };
         mat.shininess = 0.0f;
         mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+        mat.category_id = 0;
 
         if (mat.shininess < 0.01f)
         {
