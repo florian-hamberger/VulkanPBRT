@@ -37,7 +37,7 @@ void main()
     mat4 normalObj = transpose(inverse(instance.objectMat));
     normal = normalize((normalObj * vec4(normal, 0)).xyz);
     if(v0.uv == v1.uv) v1.uv += vec2(epsilon,0);
-    if(v0.uv == v2.uv) v2.uv += vec2(0,2 * epsilon);
+    if(v0.uv == v2.uv) v2.uv += vec2(0,epsilon);
     if(v1.uv == v2.uv) v2.uv += vec2(epsilon);
     vec3 T = (normalObj * vec4(getTangent(v0.pos, v1.pos, v2.pos, v0.uv, v1.uv, v2.uv).xyz, 0)).xyz;
     //T = (instance.objectMat * vec4(T, 0)).xyz;
@@ -48,9 +48,6 @@ void main()
 
     WaveFrontMaterial mat = unpackMaterial(materials.m[objId]);
     float perceptualRoughness = 0;
-    float metallic;
-    vec4 baseColor = diffuse * vec4(mat.ambient, 1);
-    vec4 albedo = baseColor;
 
     const vec3 f0 = vec3(.04);
 
@@ -58,16 +55,16 @@ void main()
     if(textureSize(specularMap[nonuniformEXT(objId)], 0) == ivec2(1,1))
         specular = vec4(0,0,0,0);
     else
-        SRGBtoLINEAR(texture(specularMap[nonuniformEXT(objId)], texCoord));
+        specular = SRGBtoLINEAR(texture(specularMap[nonuniformEXT(objId)], texCoord));
     perceptualRoughness = 1.0 - specular.a;
 
     float maxSpecular = max(max(specular.r, specular.g), specular.b);
 
-    metallic = convertMetallic(diffuse.rgb, specular.rgb, maxSpecular);
+    float metallic = convertMetallic(diffuse.rgb, specular.rgb, maxSpecular);
 
-    vec3 baseColorDiffusePart = diffuse.rgb * ((1.0 - maxSpecular) / (1 - c_MinRoughness) / max(1 - metallic, epsilon)) * mat.ambient.rgb;
+    vec3 baseColorDiffusePart = diffuse.rgb * ((1.0 - maxSpecular) / (1 - c_MinRoughness) / max(1 - metallic, epsilon)) * mat.diffuse.rgb;
     vec3 baseColorSpecularPart = specular.rgb - (vec3(c_MinRoughness) * (1 - metallic) * (1 / max(metallic, epsilon))) * mat.specular.rgb;
-    baseColor = vec4(mix(baseColorDiffusePart, baseColorSpecularPart, metallic * metallic), diffuse.a);
+    vec4 baseColor = vec4(mix(baseColorDiffusePart, baseColorSpecularPart, metallic * metallic), diffuse.a);
 
     vec3 diffuseColor = baseColor.rgb * (vec3(1.0) - f0);
     diffuseColor *= 1.0 - metallic;
@@ -88,4 +85,6 @@ void main()
     rayPayload.si = SurfaceInfo(perceptualRoughness, metallic, alphaRoughness, specularEnvironmentR0, specularEnvironmentR90, diffuseColor, specularColor, emissiveColor, normal, TBN);
 
     rayPayload.position = position;
+	
+	rayPayload.category_id = mat.category_id;
 }
