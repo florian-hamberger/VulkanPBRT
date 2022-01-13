@@ -1,7 +1,7 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight, bool terrainFormatLa2d, bool textureFormatS3tc) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainMaxHeight(terrainMaxHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc) {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc) {
 
 }
 
@@ -13,8 +13,6 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 
         heightmapIfs = std::ifstream(heightmapPath, std::ios::in | std::ios::binary);
         heightmapIfs.seekg(24);
-        uint32_t heightmapActualWidth;
-        uint32_t heightmapActualHeight;
         heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualWidth), sizeof(heightmapActualWidth));
         heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualHeight), sizeof(heightmapActualHeight));
         uint32_t heightmapTileWidth;
@@ -162,14 +160,25 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
     //std::cout << "getHeightmapVertexPosition(" << x << ", " << y << ")" << std::endl;
     float heightmapValue;
+    vsg::vec3 scaleModifier(1.0f, 1.0f, 1.0f);
     if (terrainFormatLa2d) {
         heightmapValue = heightmapLa2dBuffer[heightmapFullWidth * y + x];
+        scaleModifier.y *= heightmapActualWidth;
+        scaleModifier /= heightmapActualWidth;
+
+        scaleModifier.y *= 0.000019f;
     }
     else {
-        heightmapValue = heightmap->data()[heightmap->index(x, y)].r;
+        heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);
+        scaleModifier.y /= 256.0f; // normalize height to [0, 1)
+        scaleModifier.y *= heightmapFullWidth;
+        scaleModifier /= heightmapFullWidth;
+
+        scaleModifier.y *= 0.02f;
     }
-    heightmapValue *= float(terrainMaxHeight) / 256.0f;
-    return vsg::vec3(float(x), heightmapValue, float(y)) * terrainScale * 0.01f;
+    scaleModifier.y *= terrainScaleVertexHeight;
+    scaleModifier *= terrainScale * 10.0f;
+    return vsg::vec3(float(x) * scaleModifier.x, heightmapValue * scaleModifier.y, float(y) * scaleModifier.z);
 }
 
 vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
@@ -185,8 +194,8 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
     auto state = loadTextureMaterials();
 
     auto root = vsg::MatrixTransform::create();
-
-    root->setMatrix(vsg::rotate(vsg::PI * 0.5, 1.0, 0.0, 0.0));
+    
+    root->setMatrix(vsg::rotate(vsg::PI * 0.5, 1.0, 0.0, 0.0) * vsg::rotate(vsg::PI * 0.75, 0.0, 1.0, 0.0));
 
     auto scenegraph = vsg::StateGroup::create();
     //scenegraph->add(vsg::BindGraphicsPipeline::create(_defaultPipeline));
