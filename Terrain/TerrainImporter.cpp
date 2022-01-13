@@ -1,7 +1,7 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc) {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod) {
 
 }
 
@@ -13,7 +13,17 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 
         std::cout << "importing heightmap la2d data...";
 
-        heightmapIfs = std::ifstream(heightmapPath, std::ios::in | std::ios::binary);
+        vsg::Path heightmapFullPath = heightmapPath;
+        if (heightmapLod >= 0) {
+            heightmapFullPath.append("_L");
+            if (heightmapLod < 10) {
+                heightmapFullPath.append("0");
+            }
+            heightmapFullPath.append(std::to_string(heightmapLod));
+            heightmapFullPath.append(".la2d");
+        }
+
+        heightmapIfs = std::ifstream(heightmapFullPath, std::ios::in | std::ios::binary);
         heightmapIfs.seekg(24);
         heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualWidth), sizeof(heightmapActualWidth));
         heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualHeight), sizeof(heightmapActualHeight));
@@ -57,7 +67,20 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 
         std::cout << "importing texture la2d data...";
 
-        textureIfs = std::ifstream(texturePath, std::ios::in | std::ios::binary);
+        vsg::Path textureFullPath = texturePath;
+        if (textureLod >= 0) {
+            textureFullPath.append("_L");
+            if (textureLod < 10) {
+                textureFullPath.append("0");
+            }
+            textureFullPath.append(std::to_string(textureLod));
+            if (textureFormatS3tc) {
+                textureFullPath.append("_S3TC");
+            }
+            textureFullPath.append(".la2d");
+        }
+
+        textureIfs = std::ifstream(textureFullPath, std::ios::in | std::ios::binary);
         textureIfs.seekg(24);
         uint32_t textureActualWidth;
         uint32_t textureActualHeight;

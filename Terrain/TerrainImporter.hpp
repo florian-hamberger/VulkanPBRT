@@ -73,7 +73,7 @@ enum aiTextureMapMode
 class TerrainImporter : public vsg::Inherit<vsg::Object, TerrainImporter>
 {
 public:
-    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainVertexHeightToPixelRatio, bool terrainFormatLa2d, bool textureFormatS3tc);
+    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainVertexHeightToPixelRatio, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod);
 
     vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain();
 
@@ -87,6 +87,8 @@ private:
     float terrainScaleVertexHeight;
     bool terrainFormatLa2d;
     bool textureFormatS3tc;
+    int heightmapLod;
+    int textureLod;
 
     uint32_t heightmapActualWidth;
     uint32_t heightmapActualHeight;

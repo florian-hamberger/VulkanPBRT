@@ -132,6 +132,8 @@ int main(int argc, char** argv){
         auto terrainScaleVertexHeight = arguments.value(1.0f, {"--terrain-scale-vertex-height", "-tsvh"});
         bool terrainFormatLa2d = arguments.read("--la2d");
         bool textureFormatS3tc = arguments.read("--s3tc");
+        auto terrainHeightmapLod = arguments.value(-1, "-thl");
+        auto terrainTextureLod = arguments.value(terrainHeightmapLod, "-txl");
 
         if (sceneFilename.empty() && !externalRenderings && terrainHeightmapFilename.empty())
         {
@@ -178,7 +180,7 @@ int main(int argc, char** argv){
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
         if (!terrainHeightmapFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc);
+            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod);
             loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
                 std::cout << "Terrain heightmap not found: " << terrainHeightmapFilename << std::endl;
