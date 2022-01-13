@@ -11,6 +11,8 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
     if (terrainFormatLa2d) {
         int headerSize = 8192;
 
+        std::cout << "importing heightmap la2d data...";
+
         heightmapIfs = std::ifstream(heightmapPath, std::ios::in | std::ios::binary);
         heightmapIfs.seekg(24);
         heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualWidth), sizeof(heightmapActualWidth));
@@ -43,14 +45,17 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
         }
         uint8_t inputValue;
         if (!heightmapIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
-            std::cout << "end of file check" << std::endl;
+            //std::cout << "end of file check" << std::endl;
+            std::cout << "done" << std::endl;
         }
         else {
             std::cout << "error: end of file not yet reached?" << std::endl;
         }
-        std::cout << "heightmap la2d data imported" << std::endl;
+        //std::cout << "heightmap la2d data imported" << std::endl;
 
 
+
+        std::cout << "importing texture la2d data...";
 
         textureIfs = std::ifstream(texturePath, std::ios::in | std::ios::binary);
         textureIfs.seekg(24);
@@ -107,12 +112,13 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
         }
 
         if (!textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
-            std::cout << "end of file check" << std::endl;
+            //std::cout << "end of file check" << std::endl;
+            std::cout << "done" << std::endl;
         }
         else {
             std::cout << "error: end of file not yet reached?" << std::endl;
         }
-        std::cout << "texture la2d data imported" << std::endl;
+        //std::cout << "texture la2d data imported" << std::endl;
 
         VkFormat textureFormat;
         if (textureFormatS3tc) {
@@ -151,9 +157,9 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
         }
     }
 
-    std::cout << "creating geometry" << std::endl;
+    std::cout << "creating geometry...";
     auto terrain = createGeometry();
-    std::cout << "geometry creation done" << std::endl;
+    std::cout << "done" << std::endl;
     return terrain;
 }
 
