@@ -130,6 +130,9 @@ int main(int argc, char** argv){
         auto terrainTextureFilename = arguments.value(std::string(), "-tx");
         auto terrainScale = arguments.value(1.0f, "--terrain-scale");
         auto terrainMaxHeight = arguments.value(100, "--terrain-max-height"); // max terrain height in pixels
+        bool terrainFormatLa2d = arguments.read("--la2d");
+        bool textureFormatS3tc = arguments.read("--s3tc");
+        auto terrainTest = arguments.value(0, "--test");
 
         if (sceneFilename.empty() && !externalRenderings && terrainFilename.empty())
         {
@@ -176,12 +179,13 @@ int main(int argc, char** argv){
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
         if (!terrainFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight);
+            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight, terrainFormatLa2d, textureFormatS3tc, terrainTest);
             loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
                 std::cout << "Terrain not found: " << terrainFilename << std::endl;
                 return 1;
             }
+            std::cout << "Terrain import successful" << std::endl;
         } else if(!externalRenderings){
             AI3DFrontImporter::ReadConfig(config_json);
             auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create()); //using the assimp loader

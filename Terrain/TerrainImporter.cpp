@@ -1,39 +1,240 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainMaxHeight(terrainMaxHeight) {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight, bool terrainFormatLa2d, bool textureFormatS3tc, uint32_t terrainTest) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainMaxHeight(terrainMaxHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), terrainTest(terrainTest) {
 
 }
 
 vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
     auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create(), vsgXchange::openexr::create());
-    auto heightmapData = vsg::read_cast<vsg::Data>(heightmapPath, options);
-    if (!heightmapData.valid()) {
-        std::cout << "error loading" << std::endl;
+
+    if (terrainFormatLa2d) {
+        int headerSize = 8192;
+
+        heightmapIfs = std::ifstream(heightmapPath, std::ios::in | std::ios::binary);
+        heightmapIfs.seekg(24);
+        uint32_t heightmapActualWidth;
+        uint32_t heightmapActualHeight;
+        heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualWidth), sizeof(heightmapActualWidth));
+        heightmapIfs.read(reinterpret_cast<char*>(&heightmapActualHeight), sizeof(heightmapActualHeight));
+        uint32_t heightmapTileWidth;
+        uint32_t heightmapTileHeight;
+        heightmapIfs.read(reinterpret_cast<char*>(&heightmapTileWidth), sizeof(heightmapTileWidth));
+        heightmapIfs.read(reinterpret_cast<char*>(&heightmapTileHeight), sizeof(heightmapTileHeight));
+        heightmapIfs.seekg(headerSize);
+
+        heightmapFullWidth = ((heightmapActualWidth / heightmapTileWidth) + 1) * heightmapTileWidth;
+        heightmapFullHeight = ((heightmapActualHeight / heightmapTileHeight) + 1) * heightmapTileHeight;
+
+        heightmapLa2dBuffer = new float[heightmapFullWidth * heightmapFullHeight];
+
+        for (int yOffset = 0; yOffset < heightmapFullHeight; yOffset += heightmapTileHeight) {
+            for (int xOffset = 0; xOffset < heightmapFullWidth; xOffset += heightmapTileWidth) {
+                for (int y = 0; y < heightmapTileHeight; y++) {
+                    for (int x = 0; x < heightmapTileWidth; x++) {
+                        float inputValue;
+                        if (heightmapIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
+                            heightmapLa2dBuffer[heightmapFullWidth * (yOffset + y) + xOffset + x] = inputValue;
+                        }
+                        else {
+                            std::cout << "error: could not read from file" << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+        uint8_t inputValue;
+        if (!heightmapIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
+            std::cout << "end of file check" << std::endl;
+        }
+        else {
+            std::cout << "error: end of file not yet reached?" << std::endl;
+        }
+        std::cout << "heightmap la2d data imported" << std::endl;
+
+
+
+        textureIfs = std::ifstream(texturePath, std::ios::in | std::ios::binary);
+        textureIfs.seekg(24);
+        uint32_t textureActualWidth;
+        uint32_t textureActualHeight;
+        textureIfs.read(reinterpret_cast<char*>(&textureActualWidth), sizeof(textureActualWidth));
+        textureIfs.read(reinterpret_cast<char*>(&textureActualHeight), sizeof(textureActualHeight));
+        uint32_t textureTileWidth;
+        uint32_t textureTileHeight;
+        textureIfs.read(reinterpret_cast<char*>(&textureTileWidth), sizeof(textureTileWidth));
+        textureIfs.read(reinterpret_cast<char*>(&textureTileHeight), sizeof(textureTileHeight));
+        textureIfs.seekg(headerSize);
+
+        int textureFullWidth = ((textureActualWidth / textureTileWidth) + 1) * textureTileWidth;
+        int textureFullHeight = ((textureActualHeight / textureTileHeight) + 1) * textureTileHeight;
+
+        auto textureLa2dBufferS3tc = new uint8_t[0][8];
+        auto textureLa2dBufferRgb = new uint8_t[0][3];
+
+        int channelsToLoad;
+        int componentsToLoad;
+
+        if (textureFormatS3tc) {
+            channelsToLoad = 8;
+            //componentsToLoad = width / 4 * height / 4;
+            componentsToLoad = textureFullWidth * textureFullHeight;
+            textureLa2dBufferS3tc = new uint8_t[textureFullWidth * textureFullHeight * 16][8];
+        } else {
+            channelsToLoad = 3;
+            componentsToLoad = textureFullWidth * textureFullHeight;
+            textureLa2dBufferRgb = new uint8_t[textureFullWidth * textureFullHeight][3];
+        }
+
+        for (int yOffset = 0; yOffset < textureFullHeight; yOffset += textureTileHeight) {
+            for (int xOffset = 0; xOffset < textureFullWidth; xOffset += textureTileWidth) {
+                for (int y = 0; y < textureTileHeight; y++) {
+                    for (int x = 0; x < textureTileWidth; x++) {
+                        for (int channel = 0; channel < channelsToLoad; channel++) {
+                            if (textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
+                                if (textureFormatS3tc) {
+                                    textureLa2dBufferS3tc[textureFullWidth * (yOffset + y) + xOffset + x][channel] = inputValue;
+                                }
+                                else {
+                                    textureLa2dBufferRgb[textureFullWidth * (yOffset + y) + xOffset + x][channel] = inputValue;
+                                }
+                            }
+                            else {
+                                std::cout << "error: could not read from file" << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        //for (int y = 0; y < height; y++) {
+        //    for (int x = 0; x < width; x++) {
+        //        //uint8_t inputValue;
+        //        //textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue));
+        //        //uint8_t r = inputValue;
+        //        //textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue));
+        //        //uint8_t g = inputValue;
+        //        //textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue));
+        //        //uint8_t b = inputValue;
+        //        //uint8_t a = 255;
+        //        ////textureLa2dBuffer[(width * y) + x] = { r, g, b, a };
+        //        //textureLa2dBuffer[(width * y) + x][0] = r;
+        //        //textureLa2dBuffer[(width * y) + x][1] = g;
+        //        //textureLa2dBuffer[(width * y) + x][2] = b;
+        //        //textureLa2dBuffer[(width * y) + x][3] = a;
+
+
+        //        for (int channel = 0; channel < channelsToLoad; channel++) {
+
+        //            if (textureFormatS3tc) {
+        //                if (y >= height / 4) {
+        //                    continue;
+        //                }
+        //                if (x >= width / 4) {
+        //                    //textureLa2dBufferS3tc[(width * y) + x][channel] = textureLa2dBufferS3tc[(width * y) + (x % (width / 4))][channel];
+        //                    //textureLa2dBufferS3tc[(width * y) + x][channel] = 0;
+        //                    continue;
+        //                }
+        //            }
+
+        //            uint8_t inputValue;
+        //            if (textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
+        //                //textureLa2dBuffer[4 * (2048 * y + x) + channel] = inputValue;
+        //                if (textureFormatS3tc) {
+        //                    //if (y % 4 == 0) {
+        //                    //    textureLa2dBufferS3tc[(width * (y / 4)) + x][channel] = inputValue;
+        //                    //}
+        //                    textureLa2dBufferS3tc[(width/4 * y) + x][channel] = inputValue;
+        //                } else {
+        //                    textureLa2dBufferRgb[(width * y) + x][channel] = inputValue;
+        //                }
+        //            } else {
+        //                std::cout << "error: could not read from file" << std::endl;
+        //            }
+        //        }
+        //        /*if (!textureFormatS3tc) {
+        //            textureLa2dBufferRgb[(width * y) + x][3] = 255;
+        //        }*/
+        //        //textureLa2dBuffer[4 * (width * y + x) + 3] = 255;
+        //        //textureLa2dBuffer[(width * y) + x] = { 0, 0, 0, 0 };
+        //    }
+        //    //std::cout << "inputValue: " << std::to_string(textureLa2dBuffer[4 * (width * y)]) << std::endl;
+        //}
+
+        if (!textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
+            std::cout << "end of file check" << std::endl;
+        }
+        else {
+            std::cout << "error: end of file not yet reached?" << std::endl;
+        }
+        std::cout << "texture la2d data imported" << std::endl;
+
+        VkFormat textureFormat;
+        if (textureFormatS3tc) {
+            //textureFormat = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+            //textureFormat = static_cast<VkFormat>(131);
+            textureFormat = static_cast<VkFormat>(terrainTest);
+        }
+        else {
+            //textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
+            textureFormat = VK_FORMAT_R8G8B8_UNORM;
+        }
+        //auto textureArray2D = vsg::ubvec4Array2D::create(2048, 2048, reinterpret_cast<vsg::ubvec4*>(textureLa2dBuffer), vsg::Data::Layout{ VK_FORMAT_R8G8B8A8_UINT });
+        //VK_FORMAT_R8G8B8A8_UINT VK_FORMAT_R8G8B8A8_UNORM
+        //auto textureArray2D = vsg::ubvec4Array2D::create(2048, 2048, textureLa2dBuffer, vsg::Data::Layout{ textureFormat });
+        //vsg::Array2D<uint8_t[8]>;
+        //auto textureArray2D = vsg::Array2D<uint8_t*>::create(2048, 2048, reinterpret_cast<uint8_t**>(textureLa2dBuffer), vsg::Data::Layout{ textureFormat });
+
+        if (textureFormatS3tc) {
+            auto textureArray2D = vsg::Array2D<uint8_t[8]>::create(textureFullWidth * 4, textureFullHeight * 4, textureLa2dBufferS3tc, vsg::Data::Layout{ textureFormat });
+            texture = vsg::ref_ptr<vsg::Data>(dynamic_cast<vsg::Data*>(textureArray2D.get()));
+        } else {
+            auto textureArray2D = vsg::Array2D<uint8_t[3]>::create(textureFullWidth, textureFullHeight, textureLa2dBufferRgb, vsg::Data::Layout{ textureFormat });
+            texture = vsg::ref_ptr<vsg::Data>(dynamic_cast<vsg::Data*>(textureArray2D.get()));
+        }
+
+    } else {
+        auto heightmapData = vsg::read_cast<vsg::Data>(heightmapPath, options);
+        if (!heightmapData.valid()) {
+            std::cout << "error loading" << std::endl;
+        }
+
+        heightmap = heightmapData.cast<vsg::ubvec4Array2D>();
+        if (!heightmap) {
+            std::cout << "wrong format" << std::endl;
+        }
+
+        heightmapFullWidth = heightmap->width();
+        heightmapFullHeight = heightmap->height();
+
+        texture = vsg::read_cast<vsg::Data>(texturePath, options);
+        if (!texture.valid()) {
+            std::cout << "error loading" << std::endl;
+        }
     }
 
-    heightmap = heightmapData.cast<vsg::ubvec4Array2D>();
-    if (!heightmap) {
-        std::cout << "wrong format" << std::endl;
-    }
-
-    texture = vsg::read_cast<vsg::Data>(texturePath, options);
-    if (!texture.valid()) {
-        std::cout << "error loading" << std::endl;
-    }
-
+    std::cout << "creating geometry" << std::endl;
     auto terrain = createGeometry();
+    std::cout << "geometry creation done" << std::endl;
     return terrain;
 }
 
 vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
-    float heightmapValue = heightmap->data()[heightmap->index(x, y)].r;
+    //std::cout << "getHeightmapVertexPosition(" << x << ", " << y << ")" << std::endl;
+    float heightmapValue;
+    if (terrainFormatLa2d) {
+        heightmapValue = heightmapLa2dBuffer[heightmapFullWidth * y + x];
+    }
+    else {
+        heightmapValue = heightmap->data()[heightmap->index(x, y)].r;
+    }
     heightmapValue *= float(terrainMaxHeight) / 256.0f;
     return vsg::vec3(float(x), heightmapValue, float(y)) * terrainScale * 0.01f;
 }
 
 vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
-    return vsg::vec2(float(x) / float(heightmap->width()), float(y) / float(heightmap->height()));
+    return vsg::vec2(float(x) / float(heightmapFullWidth), float(y) / float(heightmapFullHeight));
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
@@ -77,9 +278,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
     xform->setMatrix(vsg::mat4((float*)&m2));
     parent->addChild(xform);
 
-    int width = heightmap->width();
-    int height = heightmap->height();
-    int numPixels = width * height;
+    int numPixels = heightmapFullWidth * heightmapFullHeight;
 
     int numMeshes = 1;
     for (int i = 0; i < numMeshes; ++i)
@@ -92,8 +291,8 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 
 
         int currentVertexIndex = 0;
-        for (int y = 0; y < height-1; y++) {
-            for (int x = 0; x < width-1; x++) {
+        for (int y = 0; y < heightmapFullHeight-1; y++) {
+            for (int x = 0; x < heightmapFullWidth-1; x++) {
                 vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y);
                 texcoords->at(currentVertexIndex) = getTextureCoordinate(x, y);
                 vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x, y + 1);
@@ -175,7 +374,8 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
     };
 
     auto getTexture = [&]() -> vsg::SamplerImage {
-        std::array<aiTextureMapMode, 3> wrapMode{ {aiTextureMapMode_Wrap, aiTextureMapMode_Wrap, aiTextureMapMode_Wrap} };
+        //std::array<aiTextureMapMode, 3> wrapMode{ {aiTextureMapMode_Wrap, aiTextureMapMode_Wrap, aiTextureMapMode_Wrap} };
+        std::array<aiTextureMapMode, 3> wrapMode{ {aiTextureMapMode_Clamp, aiTextureMapMode_Clamp, aiTextureMapMode_Clamp} };
 
         vsg::SamplerImage samplerImage;
 
@@ -200,7 +400,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
             //const std::string filename = vsg::findFile(texPath, options);
             //const std::string filename = "C:/Users/Flori/Projects/TUM/7-WS21/BT/VulkanPBRT/out/build/x64-Debug/heightmaps/hm_65.png";
 
-            auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create(), vsgXchange::openexr::create());
+            //auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create(), vsgXchange::openexr::create());
             samplerImage.data = texture;
 
             //if (samplerImage.data = vsg::read_cast<vsg::Data>(filename, options); !samplerImage.data.valid())
@@ -221,6 +421,8 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
 
         samplerImage.sampler->anisotropyEnable = VK_TRUE;
         samplerImage.sampler->maxAnisotropy = 16.0f;
+        //samplerImage.sampler->anisotropyEnable = VK_FALSE;
+        //samplerImage.sampler->maxAnisotropy = 0.0f;
 
         samplerImage.sampler->maxLod = samplerImage.data->getLayout().maxNumMipmaps;
 
