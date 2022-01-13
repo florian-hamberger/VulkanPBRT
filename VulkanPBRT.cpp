@@ -126,14 +126,18 @@ int main(int argc, char** argv){
         bool exportGBuffer = exportNormalPath.size() || exportDepthPath.size() || exportPositionPath.size() || exportAlbedoPath.size() || exportMaterialPath.size();
         bool storeMatrices = exportGBuffer || exportMatricesPath.size();
 
-        auto terrainFilename = arguments.value(std::string(), "-tr");
+        auto terrainHeightmapFilename = arguments.value(std::string(), "-th");
         auto terrainTextureFilename = arguments.value(std::string(), "-tx");
-        auto terrainScale = arguments.value(1.0f, "--terrain-scale");
-        auto terrainMaxHeight = arguments.value(100, "--terrain-max-height"); // max terrain height in pixels
+        auto terrainScale = arguments.value(1.0f, {"--terrain-scale", "-ts"});
+        auto terrainScaleVertexHeight = arguments.value(1.0f, {"--terrain-scale-vertex-height", "-tsvh"});
+        bool terrainFormatLa2d = arguments.read("--la2d");
+        bool textureFormatS3tc = arguments.read("--s3tc");
+        auto terrainHeightmapLod = arguments.value(-1, "-thl");
+        auto terrainTextureLod = arguments.value(terrainHeightmapLod, "-txl");
 
-        if (sceneFilename.empty() && !externalRenderings && terrainFilename.empty())
+        if (sceneFilename.empty() && !externalRenderings && terrainHeightmapFilename.empty())
         {
-            std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-tr <path_to_terrain> -tx <path_to_texture>\"." << std::endl;
+            std::cout << "Missing input parameter \"-i <path_to_model>\" or \"-th <path_to_terrain_heightmap> -tx <path_to_terrain_texture>\"." << std::endl;
         }
         if(arguments.read("m")) sceneFilename = "models/raytracing_scene.vsgt";
         if(arguments.errors()) return arguments.writeErrorMessages(std::cerr);
@@ -175,13 +179,14 @@ int main(int argc, char** argv){
         std::vector<vsg::ref_ptr<OfflineGBuffer>> offlineGBuffers;
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
-        if (!terrainFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight);
+        if (!terrainHeightmapFilename.empty()) {
+            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod);
             loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
-                std::cout << "Terrain not found: " << terrainFilename << std::endl;
+                std::cout << "Terrain heightmap not found: " << terrainHeightmapFilename << std::endl;
                 return 1;
             }
+            std::cout << "Terrain import successful" << std::endl;
         } else if(!externalRenderings){
             AI3DFrontImporter::ReadConfig(config_json);
             auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create()); //using the assimp loader
@@ -355,7 +360,7 @@ int main(int argc, char** argv){
         }
         
         // raytracing pipeline setup
-        uint32_t maxRecursionDepth = 2;
+        uint32_t maxRecursionDepth = 0;
         vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
         if(!externalRenderings)
         {

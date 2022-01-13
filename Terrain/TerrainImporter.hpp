@@ -3,6 +3,8 @@
 #include <vsg/all.h>
 #include <vsgXchange/models.h>
 #include <vsgXchange/images.h>
+#include <iostream>
+#include <fstream>
 
 //from vsgXchange/assimp/assimp.cpp
 struct Material
@@ -71,7 +73,7 @@ enum aiTextureMapMode
 class TerrainImporter : public vsg::Inherit<vsg::Object, TerrainImporter>
 {
 public:
-    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight);
+    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainVertexHeightToPixelRatio, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod);
 
     vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain();
 
@@ -82,10 +84,24 @@ private:
 
     const vsg::Path& heightmapPath, texturePath;
     float terrainScale;
-    uint32_t terrainMaxHeight;
+    float terrainScaleVertexHeight;
+    bool terrainFormatLa2d;
+    bool textureFormatS3tc;
+    int heightmapLod;
+    int textureLod;
+
+    uint32_t heightmapActualWidth;
+    uint32_t heightmapActualHeight;
+
+    std::ifstream heightmapIfs;
+    float* heightmapLa2dBuffer;
+    std::ifstream textureIfs;
 
     vsg::ref_ptr<vsg::ubvec4Array2D> heightmap;
     vsg::ref_ptr<vsg::Data> texture;
+
+    int heightmapFullWidth;
+    int heightmapFullHeight;
 
     vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y);
     vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);
