@@ -132,7 +132,6 @@ int main(int argc, char** argv){
         auto terrainMaxHeight = arguments.value(100, "--terrain-max-height"); // max terrain height in pixels
         bool terrainFormatLa2d = arguments.read("--la2d");
         bool textureFormatS3tc = arguments.read("--s3tc");
-        auto terrainTest = arguments.value(0, "--test");
 
         if (sceneFilename.empty() && !externalRenderings && terrainFilename.empty())
         {
@@ -179,7 +178,7 @@ int main(int argc, char** argv){
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
         if (!terrainFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight, terrainFormatLa2d, textureFormatS3tc, terrainTest);
+            auto terrainImporter = TerrainImporter::create(terrainFilename, terrainTextureFilename, terrainScale, terrainMaxHeight, terrainFormatLa2d, textureFormatS3tc);
             loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
                 std::cout << "Terrain not found: " << terrainFilename << std::endl;

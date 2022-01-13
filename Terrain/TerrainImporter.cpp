@@ -1,7 +1,7 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight, bool terrainFormatLa2d, bool textureFormatS3tc, uint32_t terrainTest) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainMaxHeight(terrainMaxHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), terrainTest(terrainTest) {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, uint32_t terrainMaxHeight, bool terrainFormatLa2d, bool textureFormatS3tc) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainMaxHeight(terrainMaxHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc) {
 
 }
 
@@ -172,9 +172,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 
         VkFormat textureFormat;
         if (textureFormatS3tc) {
-            //textureFormat = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
-            //textureFormat = static_cast<VkFormat>(131);
-            textureFormat = static_cast<VkFormat>(terrainTest);
+            textureFormat = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
         }
         else {
             //textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
