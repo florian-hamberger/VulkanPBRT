@@ -108,60 +108,6 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
             }
         }
 
-        //for (int y = 0; y < height; y++) {
-        //    for (int x = 0; x < width; x++) {
-        //        //uint8_t inputValue;
-        //        //textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue));
-        //        //uint8_t r = inputValue;
-        //        //textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue));
-        //        //uint8_t g = inputValue;
-        //        //textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue));
-        //        //uint8_t b = inputValue;
-        //        //uint8_t a = 255;
-        //        ////textureLa2dBuffer[(width * y) + x] = { r, g, b, a };
-        //        //textureLa2dBuffer[(width * y) + x][0] = r;
-        //        //textureLa2dBuffer[(width * y) + x][1] = g;
-        //        //textureLa2dBuffer[(width * y) + x][2] = b;
-        //        //textureLa2dBuffer[(width * y) + x][3] = a;
-
-
-        //        for (int channel = 0; channel < channelsToLoad; channel++) {
-
-        //            if (textureFormatS3tc) {
-        //                if (y >= height / 4) {
-        //                    continue;
-        //                }
-        //                if (x >= width / 4) {
-        //                    //textureLa2dBufferS3tc[(width * y) + x][channel] = textureLa2dBufferS3tc[(width * y) + (x % (width / 4))][channel];
-        //                    //textureLa2dBufferS3tc[(width * y) + x][channel] = 0;
-        //                    continue;
-        //                }
-        //            }
-
-        //            uint8_t inputValue;
-        //            if (textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
-        //                //textureLa2dBuffer[4 * (2048 * y + x) + channel] = inputValue;
-        //                if (textureFormatS3tc) {
-        //                    //if (y % 4 == 0) {
-        //                    //    textureLa2dBufferS3tc[(width * (y / 4)) + x][channel] = inputValue;
-        //                    //}
-        //                    textureLa2dBufferS3tc[(width/4 * y) + x][channel] = inputValue;
-        //                } else {
-        //                    textureLa2dBufferRgb[(width * y) + x][channel] = inputValue;
-        //                }
-        //            } else {
-        //                std::cout << "error: could not read from file" << std::endl;
-        //            }
-        //        }
-        //        /*if (!textureFormatS3tc) {
-        //            textureLa2dBufferRgb[(width * y) + x][3] = 255;
-        //        }*/
-        //        //textureLa2dBuffer[4 * (width * y + x) + 3] = 255;
-        //        //textureLa2dBuffer[(width * y) + x] = { 0, 0, 0, 0 };
-        //    }
-        //    //std::cout << "inputValue: " << std::to_string(textureLa2dBuffer[4 * (width * y)]) << std::endl;
-        //}
-
         if (!textureIfs.read(reinterpret_cast<char*>(&inputValue), sizeof(inputValue))) {
             std::cout << "end of file check" << std::endl;
         }
@@ -178,11 +124,6 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
             //textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
             textureFormat = VK_FORMAT_R8G8B8_UNORM;
         }
-        //auto textureArray2D = vsg::ubvec4Array2D::create(2048, 2048, reinterpret_cast<vsg::ubvec4*>(textureLa2dBuffer), vsg::Data::Layout{ VK_FORMAT_R8G8B8A8_UINT });
-        //VK_FORMAT_R8G8B8A8_UINT VK_FORMAT_R8G8B8A8_UNORM
-        //auto textureArray2D = vsg::ubvec4Array2D::create(2048, 2048, textureLa2dBuffer, vsg::Data::Layout{ textureFormat });
-        //vsg::Array2D<uint8_t[8]>;
-        //auto textureArray2D = vsg::Array2D<uint8_t*>::create(2048, 2048, reinterpret_cast<uint8_t**>(textureLa2dBuffer), vsg::Data::Layout{ textureFormat });
 
         if (textureFormatS3tc) {
             auto textureArray2D = vsg::Array2D<uint8_t[8]>::create(textureFullWidth * 4, textureFullHeight * 4, textureLa2dBufferS3tc, vsg::Data::Layout{ textureFormat });
