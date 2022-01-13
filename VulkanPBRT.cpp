@@ -359,7 +359,7 @@ int main(int argc, char** argv){
         }
         
         // raytracing pipeline setup
-        uint32_t maxRecursionDepth = 2;
+        uint32_t maxRecursionDepth = 0;
         vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
         if(!externalRenderings)
         {
