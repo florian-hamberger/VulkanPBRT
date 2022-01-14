@@ -95,8 +95,7 @@ private:
     int heightmapLod;
     int textureLod;
 
-    uint32_t heightmapActualWidth;
-    uint32_t heightmapActualHeight;
+
 
     std::ifstream heightmapIfs;
     float* heightmapLa2dBuffer;
@@ -105,8 +104,16 @@ private:
     vsg::ref_ptr<vsg::ubvec4Array2D> heightmap;
     vsg::ref_ptr<vsg::Data> texture;
 
+
+    uint32_t heightmapActualWidth;
+    uint32_t heightmapActualHeight;
     int heightmapFullWidth;
     int heightmapFullHeight;
+
+    uint32_t textureActualWidth;
+    uint32_t textureActualHeight;
+    int textureFullWidth;
+    int textureFullHeight;
 
     vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y);
     vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);

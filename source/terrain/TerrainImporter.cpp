@@ -82,8 +82,6 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
 
         textureIfs = std::ifstream(textureFullPath, std::ios::in | std::ios::binary);
         textureIfs.seekg(24);
-        uint32_t textureActualWidth;
-        uint32_t textureActualHeight;
         textureIfs.read(reinterpret_cast<char*>(&textureActualWidth), sizeof(textureActualWidth));
         textureIfs.read(reinterpret_cast<char*>(&textureActualHeight), sizeof(textureActualHeight));
         uint32_t textureTileWidth;
@@ -92,8 +90,8 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
         textureIfs.read(reinterpret_cast<char*>(&textureTileHeight), sizeof(textureTileHeight));
         textureIfs.seekg(headerSize);
 
-        int textureFullWidth = ((textureActualWidth / textureTileWidth) + 1) * textureTileWidth;
-        int textureFullHeight = ((textureActualHeight / textureTileHeight) + 1) * textureTileHeight;
+        textureFullWidth = ((textureActualWidth / textureTileWidth) + 1) * textureTileWidth;
+        textureFullHeight = ((textureActualHeight / textureTileHeight) + 1) * textureTileHeight;
 
         auto textureLa2dBufferS3tc = new uint8_t[0][8];
         auto textureLa2dBufferRgb = new uint8_t[0][3];
@@ -211,7 +209,10 @@ vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
 }
 
 vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
-    return vsg::vec2(float(x) / float(heightmapFullWidth), float(y) / float(heightmapFullHeight));
+    //return vsg::vec2(float(x) / float(heightmapFullWidth), float(y) / float(heightmapFullHeight));
+    float u = float(x) / float(heightmapActualWidth) * float(textureActualWidth) / float(textureFullWidth);
+    float v = float(y) / float(heightmapActualHeight) * float(textureActualHeight) / float(textureFullHeight);
+    return vsg::vec2(u, v);
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
