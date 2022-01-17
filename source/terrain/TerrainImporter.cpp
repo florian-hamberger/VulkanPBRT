@@ -184,12 +184,17 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
     return terrain;
 }
 
+uint32_t TerrainImporter::getVertexIndex(int x, int y)
+{
+    return heightmapFullWidth * y + x;
+}
+
 vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
     //std::cout << "getHeightmapVertexPosition(" << x << ", " << y << ")" << std::endl;
     float heightmapValue;
     vsg::vec3 scaleModifier(1.0f, 1.0f, 1.0f);
     if (terrainFormatLa2d) {
-        heightmapValue = heightmapLa2dBuffer[heightmapFullWidth * y + x];
+        heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y)];
         scaleModifier.y *= heightmapActualWidth;
         scaleModifier /= heightmapActualWidth;
 
@@ -261,37 +266,26 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
     int numMeshes = 1;
     for (int i = 0; i < numMeshes; ++i)
     {
-        int mNumVertices = numPixels * 6;
+        int mNumVertices = numPixels;
         auto vertices = vsg::vec3Array::create(mNumVertices);
         auto normals = vsg::vec3Array::create(mNumVertices);
         auto texcoords = vsg::vec2Array::create(mNumVertices);
-        std::vector<unsigned int> indices;
+        std::vector<uint32_t> indices;
 
-
-        int currentVertexIndex = 0;
         for (int y = 0; y < heightmapFullHeight-1; y++) {
             for (int x = 0; x < heightmapFullWidth-1; x++) {
-                vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y);
-                texcoords->at(currentVertexIndex) = getTextureCoordinate(x, y);
-                vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x, y + 1);
-                texcoords->at(currentVertexIndex + 1) = getTextureCoordinate(x, y + 1);
-                vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(x + 1, y);
-                texcoords->at(currentVertexIndex + 2) = getTextureCoordinate(x + 1, y);
-                indices.push_back(currentVertexIndex);
-                indices.push_back(currentVertexIndex + 1);
-                indices.push_back(currentVertexIndex + 2);
-                currentVertexIndex += 3;
+                vertices->at(getVertexIndex(x, y)) = getHeightmapVertexPosition(x, y);
+                texcoords->at(getVertexIndex(x, y)) = getTextureCoordinate(x, y);
 
-                vertices->at(currentVertexIndex) = getHeightmapVertexPosition(x, y + 1);
-                texcoords->at(currentVertexIndex) = getTextureCoordinate(x, y + 1);
-                vertices->at(currentVertexIndex + 1) = getHeightmapVertexPosition(x + 1, y + 1);
-                texcoords->at(currentVertexIndex + 1) = getTextureCoordinate(x + 1, y + 1);
-                vertices->at(currentVertexIndex + 2) = getHeightmapVertexPosition(x + 1, y);
-                texcoords->at(currentVertexIndex + 2) = getTextureCoordinate(x + 1, y);
-                indices.push_back(currentVertexIndex);
-                indices.push_back(currentVertexIndex + 1);
-                indices.push_back(currentVertexIndex + 2);
-                currentVertexIndex += 3;
+                if (x < heightmapFullWidth - 2 && y < heightmapFullHeight - 2) {
+                    indices.push_back(getVertexIndex(x, y));
+                    indices.push_back(getVertexIndex(x, y + 1));
+                    indices.push_back(getVertexIndex(x + 1, y));
+
+                    indices.push_back(getVertexIndex(x, y + 1));
+                    indices.push_back(getVertexIndex(x + 1, y + 1));
+                    indices.push_back(getVertexIndex(x + 1, y));
+                }
             }
         }
 
