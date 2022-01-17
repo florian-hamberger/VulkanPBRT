@@ -120,6 +120,5 @@ private:
     vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);
     vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
     TerrainImporter::State TerrainImporter::loadTextureMaterials();
-    vsg::mat4 TerrainImporter::createIdentityMatrix();
     std::string TerrainImporter::mat4ToString(vsg::mat4 m);
 };
