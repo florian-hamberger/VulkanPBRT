@@ -115,8 +115,8 @@ private:
     int textureFullWidth;
     int textureFullHeight;
 
-    uint32_t TerrainImporter::getVertexIndex(int x, int y);
-    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y);
+    uint32_t TerrainImporter::getVertexIndex(int x, int y, int width);
+    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int tileStartX, int tileStartY);
     vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);
     vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
     TerrainImporter::State TerrainImporter::loadTextureMaterials();
