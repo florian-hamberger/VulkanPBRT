@@ -20,6 +20,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/vk/Context.h>
 #include <vsg/vk/Extensions.h>
 
+#include <iostream>
+
 using namespace vsg;
 
 AccelerationStructure::AccelerationStructure(VkAccelerationStructureTypeKHR type, Device* device, Allocator* allocator) :
@@ -53,6 +55,18 @@ AccelerationStructure::~AccelerationStructure()
     }
 }
 
+void outputVkAccelerationStructureBuildSizesInfoKHR(VkAccelerationStructureBuildSizesInfoKHR* pSizeInfo)
+{
+    //std::cout << "sType: " << std::to_string(pSizeInfo->sType) << std::endl;
+    if (pSizeInfo->pNext)
+    {
+        std::cout << "pNext != null" << std::endl;
+    }
+    std::cout << "accelerationStructureSize: " << std::to_string(pSizeInfo->accelerationStructureSize) << std::endl;
+    std::cout << "updateScratchSize: " << std::to_string(pSizeInfo->updateScratchSize) << std::endl;
+    std::cout << "buildScratchSize: " << std::to_string(pSizeInfo->buildScratchSize) << std::endl;
+}
+
 void AccelerationStructure::compile(Context& context)
 {
     Extensions* extensions = Extensions::Get(context.device, true);
@@ -65,6 +79,8 @@ void AccelerationStructure::compile(Context& context)
         &_accelerationStructureBuildGeometryInfo,
         _geometryPrimitiveCounts.data(),
         &accelerationStructureBuildSizesInfo);
+
+    outputVkAccelerationStructureBuildSizesInfoKHR(&accelerationStructureBuildSizesInfo);
 
     _buffer = vsg::createBufferAndMemory(context.device, accelerationStructureBuildSizesInfo.accelerationStructureSize,
                                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
