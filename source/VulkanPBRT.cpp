@@ -192,75 +192,6 @@ int main(int argc, char** argv){
             }
             std::cout << "Terrain import successful" << std::endl;
         }
-        else if(!externalRenderings){
-            AI3DFrontImporter::ReadConfig(config_json);
-            auto options = vsg::Options::create(vsgXchange::assimp::create(), vsgXchange::dds::create(), vsgXchange::stbi::create()); //using the assimp loader
-            loaded_scene = vsg::read_cast<vsg::Node>(sceneFilename, options);
-            if(!loaded_scene){
-                std::cout << "Scene not found: " << sceneFilename << std::endl;
-                return 1;
-            }
-        }
-        else{
-            if(numFrames <= 0){
-                std::cout << "No number of frames given. For usage of external GBuffer and Illumination information use \"-f\" to inform about the number of frames." << std::endl;
-                return 1;
-            }
-            if(matricesPath.empty()){
-                std::cout << "Camera matrices are missing. Insert location of file with camera information via \"--matrices\"." << std::endl;
-                return 1;
-            }
-            cameraMatrices = MatrixIO::importMatrices(matricesPath);
-            if(cameraMatrices.empty()){
-                std::cout << "Camera matrices could not be loaded" << std::endl;
-                return 1;
-            }
-            if(positionPath.size()){
-                offlineGBuffers = GBufferIO::importGBufferPosition(positionPath, normalPath, materialPath, albedoPath, cameraMatrices, numFrames);
-            }
-            else{
-                offlineGBuffers = GBufferIO::importGBufferDepth(depthPath, normalPath, materialPath, albedoPath, numFrames);
-            }
-            offlineIlluminations = IlluminationBufferIO::importIllumination(illuminationPath, numFrames);
-            windowTraits->width = offlineGBuffers[0]->depth->width();
-            windowTraits->height = offlineGBuffers[0]->depth->height();
-        }
-        if(exportIllumination){
-            if(numFrames <= 0){
-                std::cout << "No number of frames given. For usage of Illumination export use \"-f\" to inform about the number of frames." << std::endl;
-                return 1;
-            }
-            if(offlineIlluminations.empty()){
-                offlineIlluminations.resize(numFrames);
-                for(auto& i: offlineIlluminations){
-                    i = OfflineIllumination::create();
-                    i->noisy = vsg::vec4Array2D::create(windowTraits->width, windowTraits->height);
-                }
-            }
-        }
-        if(exportGBuffer){
-            if(numFrames <= 0){
-                std::cout << "No number of frames given. For usage of GBuffer export use \"-f\" to inform about the number of frames." << std::endl;
-                return 1;
-            }
-            if(offlineGBuffers.empty()){
-                offlineGBuffers.resize(numFrames);
-                for(auto& i: offlineGBuffers){
-                    i = OfflineGBuffer::create();
-                    i->depth = vsg::floatArray2D::create(windowTraits->width, windowTraits->height);
-                    i->normal = vsg::vec2Array2D::create(windowTraits->width, windowTraits->height);
-                    i->albedo = vsg::ubvec4Array2D::create(windowTraits->width, windowTraits->height);
-                    i->material = vsg::ubvec4Array2D::create(windowTraits->width, windowTraits->height);
-                }
-            }
-        }
-        if(storeMatrices){
-            cameraMatrices.resize(numFrames);
-            for(auto& matrix: cameraMatrices){
-                matrix.proj = vsg::mat4();
-                matrix.invProj = vsg::mat4();
-            }
-        }
 
         auto window = vsg::Window::create(windowTraits);
         if(!window){
@@ -344,25 +275,9 @@ int main(int argc, char** argv){
         vsg::ref_ptr<IlluminationBuffer> illuminationBuffer;
         vsg::ref_ptr<AccumulationBuffer> accumulationBuffer;
         bool writeGBuffer;
-        if (denoisingType != DenoisingType::None)
-        {
-            gBuffer = GBuffer::create(windowTraits->width, windowTraits->height);
-            accumulationBuffer = AccumulationBuffer::create(windowTraits->width, windowTraits->height);
-            writeGBuffer = true;
-            illuminationBuffer = IlluminationBufferDemodulated::create(windowTraits->width, windowTraits->height);
-        }
-        else
         {
             writeGBuffer = false;
             illuminationBuffer = IlluminatonBufferFinalFloat::create(windowTraits->width, windowTraits->height);
-        }
-        if (exportIllumination && !gBuffer){
-            writeGBuffer = true;
-            gBuffer = GBuffer::create(windowTraits->width, windowTraits->height);
-        }
-        if (useTaa && !accumulationBuffer)
-        {
-            // TODO: need the velocity buffer
         }
         
         // raytracing pipeline setup
@@ -377,17 +292,6 @@ int main(int argc, char** argv){
             loaded_scene->accept(buildAccelStruct);
             pbrtPipeline->setTlas(buildAccelStruct.tlas);      
         }
-        else{
-            if(!gBuffer)
-                gBuffer = GBuffer::create(offlineGBuffers[0]->depth->width(), offlineGBuffers[0]->depth->height());
-            switch(offlineIlluminations[0]->noisy->getLayout().format){
-            case VK_FORMAT_R16G16B16A16_SFLOAT: illuminationBuffer = IlluminationBufferDemodulated::create(offlineIlluminations[0]->noisy->width(), offlineIlluminations[0]->noisy->height()); break;
-            case VK_FORMAT_R32G32B32A32_SFLOAT: illuminationBuffer = IlluminationBufferDemodulatedFloat::create(offlineIlluminations[0]->noisy->width(), offlineIlluminations[0]->noisy->height()); break;
-            default:
-                std::cout << "Offline illumination buffer image format not compatible" << std::endl;
-                return 1;
-            }
-        }
         // -------------------------------------------------------------------------------------
         // image layout conversions and correct binding of different denoising tequniques
         // -------------------------------------------------------------------------------------
@@ -399,161 +303,12 @@ int main(int argc, char** argv){
             pbrtPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
             illuminationBuffer = pbrtPipeline->getIlluminationBuffer();
         }
-        else{
-            if(offlineGBuffers.size() < numFrames || offlineIlluminations.size() < numFrames){
-                std::cout << "Missing offline GBuffer or offline Illumination Buffer info" << std::endl;
-                return 1;
-            }
-            offlineGBufferStager->uploadToGBufferCommand(gBuffer, commands, imageLayoutCompile.context);
-            offlineIlluminationBufferStager->uploadToIlluminationBufferCommand(illuminationBuffer, commands, imageLayoutCompile.context);
-        }
-
-        vsg::ref_ptr<Accumulator> accumulator;
-        if(externalRenderings && denoisingType != DenoisingType::None){
-            accumulator = Accumulator::create(gBuffer, illuminationBuffer, cameraMatrices);
-            accumulator->addDispatchToCommandGraph(commands);
-            accumulationBuffer = accumulator->accumulationBuffer;
-            illuminationBuffer->compile(imageLayoutCompile.context);
-            illuminationBuffer->updateImageLayouts(imageLayoutCompile.context);
-            illuminationBuffer = accumulator->accumulatedIllumination;  //swap illumination buffer to accumulated illumination for correct use in the following pipelines
-        }
 
         vsg::ref_ptr<vsg::DescriptorImage> finalDescriptorImage;  
         switch(denoisingType){
         case DenoisingType::None:
             finalDescriptorImage = illuminationBuffer->illuminationImages[0];
             break;
-        case DenoisingType::BFR:
-            switch(denoisingBlockSize){
-            case DenoisingBlockSize::x8:
-            {
-                auto bfr8 = BFR::create(windowTraits->width, windowTraits->height, 8, 8, gBuffer, illuminationBuffer, accumulationBuffer);
-                bfr8->compile(imageLayoutCompile.context);
-                bfr8->updateImageLayouts(imageLayoutCompile.context);
-                bfr8->addDispatchToCommandGraph(commands, computeConstants);
-                finalDescriptorImage = bfr8->getFinalDescriptorImage();
-                break;
-            }
-            case DenoisingBlockSize::x16:
-            {
-                auto bfr16 = BFR::create(windowTraits->width, windowTraits->height, 16, 16, gBuffer, illuminationBuffer, accumulationBuffer);
-                bfr16->compile(imageLayoutCompile.context);
-                bfr16->updateImageLayouts(imageLayoutCompile.context);
-                bfr16->addDispatchToCommandGraph(commands, computeConstants);
-                finalDescriptorImage = bfr16->getFinalDescriptorImage();
-                break;
-            }
-            case DenoisingBlockSize::x32:
-            {
-                auto bfr32 = BFR::create(windowTraits->width, windowTraits->height, 32, 32, gBuffer, illuminationBuffer, accumulationBuffer);
-                bfr32->compile(imageLayoutCompile.context);
-                bfr32->updateImageLayouts(imageLayoutCompile.context);
-                bfr32->addDispatchToCommandGraph(commands, computeConstants);
-                finalDescriptorImage = bfr32->getFinalDescriptorImage();
-                break;
-            }
-            case DenoisingBlockSize::x8x16x32:
-            {
-                auto bfr8 = BFR::create(windowTraits->width, windowTraits->height, 8, 8, gBuffer, illuminationBuffer, accumulationBuffer);
-                auto bfr16 = BFR::create(windowTraits->width, windowTraits->height, 16, 16, gBuffer, illuminationBuffer, accumulationBuffer);
-                auto bfr32 = BFR::create(windowTraits->width, windowTraits->height, 32, 32, gBuffer, illuminationBuffer, accumulationBuffer);
-                auto blender = BFRBlender::create(windowTraits->width, windowTraits->height, 
-                                        illuminationBuffer->illuminationImages[0], illuminationBuffer->illuminationImages[1],
-                                        bfr8->getFinalDescriptorImage(), bfr16->getFinalDescriptorImage(), bfr32->getFinalDescriptorImage());
-                bfr8->compile(imageLayoutCompile.context);
-                bfr8->updateImageLayouts(imageLayoutCompile.context);
-                bfr16->compile(imageLayoutCompile.context);
-                bfr16->updateImageLayouts(imageLayoutCompile.context);
-                bfr32->compile(imageLayoutCompile.context);
-                bfr32->updateImageLayouts(imageLayoutCompile.context);
-                blender->compile(imageLayoutCompile.context);
-                blender->updateImageLayouts(imageLayoutCompile.context);
-                bfr8->addDispatchToCommandGraph(commands, computeConstants);
-                bfr16->addDispatchToCommandGraph(commands, computeConstants);
-                bfr32->addDispatchToCommandGraph(commands, computeConstants);
-                blender->addDispatchToCommandGraph(commands);
-                finalDescriptorImage = blender->getFinalDescriptorImage();
-                break;
-            }
-            }
-            break;
-        case DenoisingType::BMFR:
-            switch(denoisingBlockSize){
-            case DenoisingBlockSize::x8:
-            {
-                auto bmfr8 = BMFR::create(windowTraits->width, windowTraits->height, 8, 8, gBuffer, illuminationBuffer, accumulationBuffer, 64);
-                bmfr8->compile(imageLayoutCompile.context);
-                bmfr8->updateImageLayouts(imageLayoutCompile.context);
-                bmfr8->addDispatchToCommandGraph(commands, computeConstants);
-                finalDescriptorImage = bmfr8->getFinalDescriptorImage();
-                break;
-            }
-            case DenoisingBlockSize::x16:
-            {
-                auto bmfr16 = BMFR::create(windowTraits->width, windowTraits->height, 16, 16, gBuffer, illuminationBuffer, accumulationBuffer);
-                bmfr16->compile(imageLayoutCompile.context);
-                bmfr16->updateImageLayouts(imageLayoutCompile.context);
-                bmfr16->addDispatchToCommandGraph(commands, computeConstants);
-                finalDescriptorImage = bmfr16->getFinalDescriptorImage();
-                break;
-            }
-            case DenoisingBlockSize::x32:
-            {
-                auto bmfr32 = BMFR::create(windowTraits->width, windowTraits->height, 32, 32, gBuffer, illuminationBuffer, accumulationBuffer);
-                bmfr32->compile(imageLayoutCompile.context);
-                bmfr32->updateImageLayouts(imageLayoutCompile.context);
-                bmfr32->addDispatchToCommandGraph(commands, computeConstants);
-                finalDescriptorImage = bmfr32->getFinalDescriptorImage();
-                break;
-            }
-            case DenoisingBlockSize::x8x16x32:
-                auto bmfr8 = BMFR::create(windowTraits->width, windowTraits->height, 8, 8, gBuffer, illuminationBuffer, accumulationBuffer, 64);
-                auto bmfr16 = BMFR::create(windowTraits->width, windowTraits->height, 16, 16, gBuffer, illuminationBuffer, accumulationBuffer);
-                auto bmfr32 = BMFR::create(windowTraits->width, windowTraits->height, 32, 32, gBuffer, illuminationBuffer, accumulationBuffer);
-                auto blender = BFRBlender::create(windowTraits->width, windowTraits->height, 
-                                        illuminationBuffer->illuminationImages[1], illuminationBuffer->illuminationImages[2],
-                                        bmfr8->getFinalDescriptorImage(), bmfr16->getFinalDescriptorImage(), bmfr32->getFinalDescriptorImage());
-                bmfr8->compile(imageLayoutCompile.context);
-                bmfr8->updateImageLayouts(imageLayoutCompile.context);
-                bmfr16->compile(imageLayoutCompile.context);
-                bmfr16->updateImageLayouts(imageLayoutCompile.context);
-                bmfr32->compile(imageLayoutCompile.context);
-                bmfr32->updateImageLayouts(imageLayoutCompile.context);
-                blender->compile(imageLayoutCompile.context);
-                blender->updateImageLayouts(imageLayoutCompile.context);
-                bmfr8->addDispatchToCommandGraph(commands, computeConstants);
-                bmfr16->addDispatchToCommandGraph(commands, computeConstants);
-                bmfr32->addDispatchToCommandGraph(commands, computeConstants);
-                blender->addDispatchToCommandGraph(commands);
-                finalDescriptorImage = blender->getFinalDescriptorImage();
-                break;
-            }
-            break;
-        case DenoisingType::SVG:
-            std::cout << "Not yet implemented" << std::endl;
-            break;
-        }
-
-        if(useTaa && accumulationBuffer){
-            auto taa = Taa::create(windowTraits->width, windowTraits->height, 16, 16, gBuffer, accumulationBuffer, finalDescriptorImage);
-            taa->compile(imageLayoutCompile.context);
-            taa->updateImageLayouts(imageLayoutCompile.context);
-            taa->addDispatchToCommandGraph(commands);
-            finalDescriptorImage = taa->getFinalDescriptorImage();
-        }
-        if(exportGBuffer){
-            if(!gBuffer){
-                std::cout << "GBuffer information not available, export not possible" << std::endl;
-                return 1;
-            }
-            offlineGBufferStager->downloadFromGBufferCommand(gBuffer, commands, imageLayoutCompile.context);
-        }
-        if(exportIllumination){
-            if(finalDescriptorImage->imageInfoList[0]->imageView->image->format != VK_FORMAT_R32G32B32A32_SFLOAT){
-                std::cout << "Final image layout is not compatible illumination buffer export" << std::endl;
-                return 1;
-            }
-            offlineIlluminationBufferStager->downloadFromIlluminationBufferCommand(illuminationBuffer, commands, imageLayoutCompile.context);
         }
         if(finalDescriptorImage->imageInfoList[0]->imageView->image->format != VK_FORMAT_B8G8R8A8_UNORM){
             auto converter = FormatConverter::create(finalDescriptorImage->imageInfoList[0]->imageView, VK_FORMAT_B8G8R8A8_UNORM);
@@ -619,14 +374,6 @@ int main(int argc, char** argv){
 
         int numFramesC = numFrames;
         while(viewer->advanceToNextFrame() && (numFrames < 0 || (numFrames--) > 0)){
-            if(externalRenderings)
-            {
-                int frame = offlineGBuffers.size() - 1 - numFrames;     //invert numFrames as it is counting down
-                offlineGBufferStager->transferStagingDataFrom(offlineGBuffers[frame]);
-                offlineIlluminationBufferStager->transferStagingDataFrom(offlineIlluminations[frame]);
-                if(accumulator)
-                    accumulator->setFrameIndex(frame);
-            }
             
             viewer->handleEvents();
 
@@ -643,35 +390,8 @@ int main(int argc, char** argv){
             viewer->present();
 
             rayTracingPushConstantsValue->value().prevView = lookAt->transform();
-
-            if(exportGBuffer || exportIllumination){
-                viewer->deviceWaitIdle();
-            }
-            if(exportIllumination){
-                int frame = offlineIlluminations.size() - 1 - numFrames;
-                offlineIlluminationBufferStager->transferStagingDataTo(offlineIlluminations[frame]);
-            }
-            if(exportGBuffer){
-                int frame = offlineGBuffers.size() - 1 - numFrames;
-                offlineGBufferStager->transferStagingDataTo(offlineGBuffers[frame]);
-            }
-            if(storeMatrices){
-                int frame = cameraMatrices.size() - 1 - numFrames;
-                cameraMatrices[frame].view = lookAt->transform();
-                cameraMatrices[frame].invView = lookAt->inverse();
-                cameraMatrices[frame].proj.value() = perspective->transform();
-                cameraMatrices[frame].invProj.value() = perspective->inverse();
-            }
         }
         numFrames = numFramesC;
-
-        // exporting all images
-        if(exportGBuffer)
-            GBufferIO::exportGBuffer(exportPositionPath, exportDepthPath, exportNormalPath, exportMaterialPath, exportAlbedoPath, numFrames, offlineGBuffers, cameraMatrices);
-        if(exportIllumination)
-            IlluminationBufferIO::exportIllumination(exportIlluminationPath, numFrames, offlineIlluminations);
-        if(exportMatricesPath.size())
-            MatrixIO::exportMatrices(exportMatricesPath, cameraMatrices);
     }
     catch (const vsg::Exception& e){
         std::cout << e.message << " VkResult = " << e.result << std::endl;
