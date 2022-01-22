@@ -36,11 +36,12 @@ using namespace vsg;
 // BuildAccelerationStructureCommand
 //
 
-BuildAccelerationStructureCommand::BuildAccelerationStructureCommand(Device* device, const VkAccelerationStructureBuildGeometryInfoKHR& info, const VkAccelerationStructureKHR& structure, const std::vector<uint32_t>& primitiveCounts, Allocator* allocator) :
+BuildAccelerationStructureCommand::BuildAccelerationStructureCommand(Device* device, const VkAccelerationStructureBuildGeometryInfoKHR& info, const VkAccelerationStructureKHR& structure, const std::vector<uint32_t>& primitiveCounts, Allocator* allocator, bool update) :
     Inherit(allocator),
     _device(device),
     _accelerationStructureInfo(info),
-    _accelerationStructure(structure)
+    _accelerationStructure(structure),
+    update(update)
 {
     _accelerationStructureInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     _accelerationStructureInfo.dstAccelerationStructure = _accelerationStructure;
@@ -58,6 +59,28 @@ BuildAccelerationStructureCommand::BuildAccelerationStructureCommand(Device* dev
 
 void BuildAccelerationStructureCommand::record(CommandBuffer& commandBuffer) const
 {
+    std::cout << "BuildAccelerationStructureCommand::record ";
+    switch (_accelerationStructureInfo.type)
+    {
+    case 0:
+        std::cout << "tlas";
+        break;
+    case 1:
+        std::cout << "blas";
+        break;
+    case 2:
+        std::cout << "generic";
+        break;
+    default:
+        std::cout << "error";
+        break;
+    }
+    if (update)
+    {
+        std::cout << " UPDATE";
+    }
+    std::cout << std::endl;
+
     Extensions* extensions = Extensions::Get(_device, true);
     const VkAccelerationStructureBuildRangeInfoKHR* rangeInfos = _accelerationStructureBuildRangeInfos.data();
     extensions->vkCmdBuildAccelerationStructuresKHR(
@@ -81,6 +104,11 @@ void BuildAccelerationStructureCommand::setScratchBuffer(ref_ptr<Buffer>& scratc
     Extensions* extensions = Extensions::Get(_device, true);
     VkBufferDeviceAddressInfo devAddressInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, _scratchBuffer->vk(_device->deviceID)};
     _accelerationStructureInfo.scratchData.deviceAddress = extensions->vkGetBufferDeviceAddressKHR(_device->getDevice(), &devAddressInfo);
+}
+
+BuildAccelerationStructureCommand::~BuildAccelerationStructureCommand()
+{
+    std::cout << "~BuildAccelerationStructureCommand" << std::endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -117,7 +145,9 @@ Context::Context(const Context& context) :
 
 Context::~Context()
 {
+    std::cout << "~Context start" << std::endl;
     waitForCompletion();
+    std::cout << "~Context end" << std::endl;
 }
 
 ref_ptr<CommandBuffer> Context::getOrCreateCommandBuffer()
@@ -211,8 +241,10 @@ bool Context::record()
     // create scratch buffer and issue build acceleration structure commands
     ref_ptr<Buffer> scratchBuffer;
     ref_ptr<DeviceMemory> scratchBufferMemory;
+    std::cout << "scratchBufferSize " << std::endl;
     if (scratchBufferSize > 0)
     {
+        std::cout << "scratchBufferSize > 0" << std::endl;
         scratchBuffer = vsg::createBufferAndMemory(device, scratchBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         for (auto& command : buildAccelerationStructureCommands)

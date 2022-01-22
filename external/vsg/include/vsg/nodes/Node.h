@@ -21,6 +21,8 @@ namespace vsg
     public:
         Node(Allocator* allocator = nullptr);
 
+        int type;
+
     protected:
         virtual ~Node();
     };

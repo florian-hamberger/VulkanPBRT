@@ -18,6 +18,7 @@ using namespace vsg;
 Node::Node(Allocator* allocator) :
     Inherit(allocator)
 {
+    type = 0;
 }
 
 Node::~Node()

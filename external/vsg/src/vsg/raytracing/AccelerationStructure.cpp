@@ -44,6 +44,8 @@ AccelerationStructure::AccelerationStructure(VkAccelerationStructureTypeKHR type
     _accelerationStructureBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     _accelerationStructureBuildGeometryInfo.type = type;
     _accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+
+    update = false;
 }
 
 AccelerationStructure::~AccelerationStructure()
@@ -69,37 +71,77 @@ void outputVkAccelerationStructureBuildSizesInfoKHR(VkAccelerationStructureBuild
 
 void AccelerationStructure::compile(Context& context)
 {
-    Extensions* extensions = Extensions::Get(context.device, true);
-
-    VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
-    accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-    extensions->vkGetAccelerationStructureBuildSizesKHR(
-        *context.device,
-        VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-        &_accelerationStructureBuildGeometryInfo,
-        _geometryPrimitiveCounts.data(),
-        &accelerationStructureBuildSizesInfo);
-
-    outputVkAccelerationStructureBuildSizesInfoKHR(&accelerationStructureBuildSizesInfo);
-
-    _buffer = vsg::createBufferAndMemory(context.device, accelerationStructureBuildSizesInfo.accelerationStructureSize,
-                                         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    _accelerationStructureInfo.buffer = _buffer->vk(context.deviceID);
-    _accelerationStructureInfo.size = accelerationStructureBuildSizesInfo.accelerationStructureSize;
-    VkResult result = extensions->vkCreateAccelerationStructureKHR(*context.device, &_accelerationStructureInfo, nullptr, &_accelerationStructure);
-    if (result == VK_SUCCESS)
+    std::cout << "as compile" << std::endl;
+    if (!update)
     {
-        VkAccelerationStructureDeviceAddressInfoKHR deviceAddressInfo{};
-        deviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-        deviceAddressInfo.accelerationStructure = _accelerationStructure;
-        _handle = extensions->vkGetAccelerationStructureDeviceAddressKHR(*context.device, &deviceAddressInfo);
+        Extensions* extensions = Extensions::Get(context.device, true);
 
-        _requiredBuildScratchSize = accelerationStructureBuildSizesInfo.buildScratchSize;
-        context.scratchBufferSize = std::max(_requiredBuildScratchSize, context.scratchBufferSize);
+        VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
+        accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        extensions->vkGetAccelerationStructureBuildSizesKHR(
+            *context.device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &_accelerationStructureBuildGeometryInfo,
+            _geometryPrimitiveCounts.data(),
+            &accelerationStructureBuildSizesInfo);
+
+        outputVkAccelerationStructureBuildSizesInfoKHR(&accelerationStructureBuildSizesInfo);
+
+        _buffer = vsg::createBufferAndMemory(context.device, accelerationStructureBuildSizesInfo.accelerationStructureSize,
+                                             VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        _accelerationStructureInfo.buffer = _buffer->vk(context.deviceID);
+        _accelerationStructureInfo.size = accelerationStructureBuildSizesInfo.accelerationStructureSize;
+        VkResult result = extensions->vkCreateAccelerationStructureKHR(*context.device, &_accelerationStructureInfo, nullptr, &_accelerationStructure);
+        if (result == VK_SUCCESS)
+        {
+            VkAccelerationStructureDeviceAddressInfoKHR deviceAddressInfo{};
+            deviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+            deviceAddressInfo.accelerationStructure = _accelerationStructure;
+            _handle = extensions->vkGetAccelerationStructureDeviceAddressKHR(*context.device, &deviceAddressInfo);
+
+            _requiredBuildScratchSize = accelerationStructureBuildSizesInfo.buildScratchSize;
+            context.scratchBufferSize = std::max(_requiredBuildScratchSize, context.scratchBufferSize);
+        }
+        else
+        {
+            throw Exception{"Error: vsg::AccelerationStructure::compile(...) failed to create AccelerationStructure.", result};
+        }
     }
     else
     {
-        throw Exception{"Error: vsg::AccelerationStructure::compile(...) failed to create AccelerationStructure.", result};
+        Extensions* extensions = Extensions::Get(context.device, true);
+
+        VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
+        accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        extensions->vkGetAccelerationStructureBuildSizesKHR(
+            *context.device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &_accelerationStructureBuildGeometryInfo,
+            _geometryPrimitiveCounts.data(),
+            &accelerationStructureBuildSizesInfo);
+
+        outputVkAccelerationStructureBuildSizesInfoKHR(&accelerationStructureBuildSizesInfo);
+
+        //_buffer = vsg::createBufferAndMemory(context.device, accelerationStructureBuildSizesInfo.accelerationStructureSize,
+        //                                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        //_accelerationStructureInfo.buffer = _buffer->vk(context.deviceID);
+        //_accelerationStructureInfo.size = accelerationStructureBuildSizesInfo.accelerationStructureSize;
+        //VkResult result = extensions->vkCreateAccelerationStructureKHR(*context.device, &_accelerationStructureInfo, nullptr, &_accelerationStructure);
+        //if (result == VK_SUCCESS)
+        //{
+            //VkAccelerationStructureDeviceAddressInfoKHR deviceAddressInfo{};
+            //deviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+            //deviceAddressInfo.accelerationStructure = _accelerationStructure;
+            //_handle = extensions->vkGetAccelerationStructureDeviceAddressKHR(*context.device, &deviceAddressInfo);
+
+            _requiredBuildScratchSize = accelerationStructureBuildSizesInfo.buildScratchSize;
+            context.scratchBufferSize = std::max(_requiredBuildScratchSize, context.scratchBufferSize);
+        //}
+        //else
+        //{
+        //    throw Exception{"Error: vsg::AccelerationStructure::compile(...) failed to create AccelerationStructure.", result};
+        //}
     }
 }

@@ -17,8 +17,11 @@ public:
     RayTracingUniformValue() {}
 };
 
-void compileNode(vsg::ref_ptr<vsg::Object> node, vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::ViewportState> viewport)
+vsg::ref_ptr<vsg::CompileTraversal> compileNode(vsg::ref_ptr<vsg::Object> object, vsg::ref_ptr<vsg::AccelerationStructure> accelerationStructure, vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::ViewportState> viewport, bool useAccelerationStructure)
 {
+    if (useAccelerationStructure) {
+        object = accelerationStructure;
+    }
 
     std::cout << "Compiling " << std::endl;
 
@@ -27,7 +30,7 @@ void compileNode(vsg::ref_ptr<vsg::Object> node, vsg::ref_ptr<vsg::Window> windo
     auto compileTraversal = vsg::CompileTraversal::create(window, viewport, resourceRequirements);
 
     vsg::CollectResourceRequirements collectRequirements;
-    node->accept(collectRequirements);
+    object->accept(collectRequirements);
 
     auto maxSets = collectRequirements.requirements.computeNumDescriptorSets();
     auto descriptorPoolSizes = collectRequirements.requirements.computeDescriptorPoolSizes();
@@ -35,15 +38,24 @@ void compileNode(vsg::ref_ptr<vsg::Object> node, vsg::ref_ptr<vsg::Window> windo
     // brute force allocation of new DescrptorPool for this subgraph, TODO : need to preallocate large DescritorPoil for multiple loaded subgraphs
     if (descriptorPoolSizes.size() > 0) compileTraversal->context.descriptorPool = vsg::DescriptorPool::create(compileTraversal->context.device, maxSets, descriptorPoolSizes);
 
-    node->accept(*compileTraversal);
+    if (useAccelerationStructure) {
+        accelerationStructure->compile(compileTraversal->context);
+    }
+    else {
+        object->accept(*compileTraversal);
+    }
 
     std::cout << "Finished compile traversal " << std::endl;
+
+    std::cout << std::to_string(compileTraversal->context.buildAccelerationStructureCommands.size()) << std::endl;
 
     compileTraversal->context.record(); // records and submits to queue
 
     compileTraversal->context.waitForCompletion();
 
     std::cout << "Finished waiting for compile " << std::endl;
+
+    return compileTraversal;
 }
 
 int main(int argc, char** argv)
@@ -322,6 +334,9 @@ int main(int argc, char** argv)
         //tlas->geometryInstances.push_back(geominstance);
         //tlas->geometryInstances[0]->transform = vsg::translate(-1.5f, 0.0f, 0.0f);
 
+        vsg::ref_ptr<vsg::CompileTraversal> compileTraversal;
+        vsg::ref_ptr<vsg::Context> context;
+        vsg::ref_ptr<vsg::AccelerationStructure> dummy;
 
         // rendering main loop
         int frameCount = 0;
@@ -331,17 +346,46 @@ int main(int argc, char** argv)
             {
                 std::cout << "100" << std::endl;
 
-                scenegraph->addChild(bindDescriptorSets);
                 tlas->geometryInstances[0]->transform = vsg::translate(-1.5f, 0.0f, 0.0f);
-                compileNode(bindDescriptorSets, window, viewport);
+
+                bindDescriptorSets->type = 1;
+                scenegraph->addChild(bindDescriptorSets);
+
+                compileTraversal = compileNode(bindDescriptorSets, dummy, window, viewport, false);
+                context = &compileTraversal->context;
+                
             }
             if (frameCount == 200)
             {
                 std::cout << "200" << std::endl;
 
+                //int index = -1;
+                //auto children = scenegraph->children;
+                //std::cout << std::to_string(children.size()) << std::endl;
+                //for (int i = 0; i < children.size(); ++i) {
+                //    auto command = children[i];
+                //    if (command->type == 1) {
+                //        index = i;
+                //        break;
+                //    }
+                //}
+                //if (index >= 0) {
+                //    children.erase(children.begin() + index);
+                //}
+                //std::cout << std::to_string(children.size()) << std::endl;
+
+
                 //scenegraph->addChild(bindDescriptorSets);
                 //tlas->geometryInstances[0]->transform = vsg::translate(-1.5f, 0.0f, 0.0f);
-                compileNode(bindDescriptorSets, window, viewport);
+                //compileNode(bindDescriptorSets, window, viewport);
+                
+                //context->record();
+                //context->waitForCompletion();
+
+                tlas->update = true;
+                auto tlasCompileTraversal = compileNode(tlas, tlas, window, viewport, true);
+                
+
             }
 
 

@@ -82,6 +82,7 @@ namespace vsg
         explicit TopLevelAccelerationStructure(Device* device, Allocator* allocator = nullptr);
 
         void compile(Context& context) override;
+        //void update(Context& context);
 
         GeometryInstances geometryInstances;
 
