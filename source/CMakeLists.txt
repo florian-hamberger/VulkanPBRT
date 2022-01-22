@@ -1,3 +1,4 @@
+add_subdirectory(vsgraytracing)
 
 include_directories(${PROJECT_SOURCE_DIR}/external/vsg/include/vsg)
 include_directories(buffers)
