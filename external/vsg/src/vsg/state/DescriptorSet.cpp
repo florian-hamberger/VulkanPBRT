@@ -16,6 +16,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/traversals/CompileTraversal.h>
 #include <vsg/vk/CommandBuffer.h>
 
+#include <iostream>
+
 using namespace vsg;
 
 #define USE_MUTEX 0
@@ -78,6 +80,7 @@ void DescriptorSet::write(Output& output) const
 
 void DescriptorSet::compile(Context& context)
 {
+    std::cout << "DescriptorSet::compile" << std::endl;
     if (!_implementation[context.deviceID])
     {
         // make sure all the contributing objects are compiled
@@ -124,12 +127,17 @@ DescriptorSet::Implementation::~Implementation()
 
 void DescriptorSet::Implementation::assign(Context& context, const Descriptors& descriptors)
 {
+    std::cout << "TEST" << std::endl;
     // should we doing anything about previous _descriptor that may have been assigned?
     _descriptors = descriptors;
 
     if (_descriptors.empty()) return;
 
+    std::cout << "TEST1" << std::endl;
+
     VkWriteDescriptorSet* descriptorWrites = context.scratchMemory->allocate<VkWriteDescriptorSet>(_descriptors.size());
+
+    std::cout << "TEST2" << std::endl;
 
     for (size_t i = 0; i < _descriptors.size(); ++i)
     {
@@ -137,10 +145,13 @@ void DescriptorSet::Implementation::assign(Context& context, const Descriptors& 
         descriptorWrites[i].dstSet = _descriptorSet;
     }
 
+    std::cout << "TEST3" << std::endl;
+
     vkUpdateDescriptorSets(*_device, static_cast<uint32_t>(descriptors.size()), descriptorWrites, 0, nullptr);
 
     // clean up scratch memory so it can be reused.
     context.scratchMemory->release();
+    std::cout << "TEST END" << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////

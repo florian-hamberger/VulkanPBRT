@@ -37,11 +37,12 @@ namespace vsg
 
         uint32_t getNumDescriptors() const override;
 
-    protected:
         AccelerationStructures _accelerationStructures;
 
         // populated by compile()
         std::vector<VkAccelerationStructureKHR> _vkAccelerationStructures;
+
+    protected:
     };
     VSG_type_name(vsg::DescriptorAccelerationStructure)
 

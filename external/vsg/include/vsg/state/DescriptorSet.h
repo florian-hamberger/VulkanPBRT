@@ -53,9 +53,6 @@ namespace vsg
 
         VkDescriptorSet vk(uint32_t deviceID) const { return _implementation[deviceID]->_descriptorSet; }
 
-    protected:
-        virtual ~DescriptorSet();
-
         struct Implementation : public Inherit<Object, Implementation>
         {
             Implementation(Device* device, DescriptorPool* descriptorPool, DescriptorSetLayout* descriptorSetLayout);
@@ -72,6 +69,9 @@ namespace vsg
         };
 
         vk_buffer<ref_ptr<Implementation>> _implementation;
+
+    protected:
+        virtual ~DescriptorSet();
     };
     VSG_type_name(vsg::DescriptorSet);
 

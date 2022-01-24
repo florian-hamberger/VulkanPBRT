@@ -17,29 +17,39 @@ public:
     RayTracingUniformValue() {}
 };
 
-vsg::ref_ptr<vsg::CompileTraversal> compileNode(vsg::ref_ptr<vsg::Object> object, vsg::ref_ptr<vsg::AccelerationStructure> accelerationStructure, vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::ViewportState> viewport, bool useAccelerationStructure)
+vsg::ref_ptr<vsg::CompileTraversal> compileNode(vsg::ref_ptr<vsg::Object> object, vsg::ref_ptr<vsg::AccelerationStructure> accelerationStructure, vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::ViewportState> viewport, bool useAccelerationStructure, vsg::ref_ptr<vsg::CompileTraversal> externalCompileTraversal, bool useExternalCompileTraversal, vsg::ref_ptr<vsg::DescriptorAccelerationStructure> descriptorAccelerationStructure, bool useDescriptorAccelerationStructure)
 {
     if (useAccelerationStructure) {
         object = accelerationStructure;
+    } else if (useDescriptorAccelerationStructure) {
+        object = descriptorAccelerationStructure;
     }
 
     std::cout << "Compiling " << std::endl;
 
-    std::cout << "takeCompileTraversal() creating a new CompileTraversal" << std::endl;
-    vsg::ResourceRequirements resourceRequirements;
-    auto compileTraversal = vsg::CompileTraversal::create(window, viewport, resourceRequirements);
+    vsg::ref_ptr<vsg::CompileTraversal> compileTraversal;
+    if (useExternalCompileTraversal) {
+        compileTraversal = externalCompileTraversal;
+    } else {
+        std::cout << "takeCompileTraversal() creating a new CompileTraversal" << std::endl;
+        vsg::ResourceRequirements resourceRequirements;
+        compileTraversal = vsg::CompileTraversal::create(window, viewport, resourceRequirements);
 
-    vsg::CollectResourceRequirements collectRequirements;
-    object->accept(collectRequirements);
+        vsg::CollectResourceRequirements collectRequirements;
+        object->accept(collectRequirements);
 
-    auto maxSets = collectRequirements.requirements.computeNumDescriptorSets();
-    auto descriptorPoolSizes = collectRequirements.requirements.computeDescriptorPoolSizes();
+        auto maxSets = collectRequirements.requirements.computeNumDescriptorSets();
+        auto descriptorPoolSizes = collectRequirements.requirements.computeDescriptorPoolSizes();
 
-    // brute force allocation of new DescrptorPool for this subgraph, TODO : need to preallocate large DescritorPoil for multiple loaded subgraphs
-    if (descriptorPoolSizes.size() > 0) compileTraversal->context.descriptorPool = vsg::DescriptorPool::create(compileTraversal->context.device, maxSets, descriptorPoolSizes);
+        // brute force allocation of new DescrptorPool for this subgraph, TODO : need to preallocate large DescritorPoil for multiple loaded subgraphs
+        if (descriptorPoolSizes.size() > 0) compileTraversal->context.descriptorPool = vsg::DescriptorPool::create(compileTraversal->context.device, maxSets, descriptorPoolSizes);
+    }
 
     if (useAccelerationStructure) {
         accelerationStructure->compile(compileTraversal->context);
+    }
+    else if (useDescriptorAccelerationStructure) {
+        descriptorAccelerationStructure->compile(compileTraversal->context);
     }
     else {
         object->accept(*compileTraversal);
@@ -173,6 +183,7 @@ int main(int argc, char** argv)
         }
 
         vsg::ref_ptr<vsg::TopLevelAccelerationStructure> tlas;
+        vsg::ref_ptr<vsg::TopLevelAccelerationStructure> tlas2;
         //vsg::ref_ptr<vsg::GeometryInstance> geominstance;
         if (filename.empty())
         {
@@ -228,6 +239,10 @@ int main(int argc, char** argv)
             loaded_scene->accept(buildAccelStruct);
             tlas = buildAccelStruct.tlas;
 
+            vsg::BuildAccelerationStructureTraversal buildAccelStruct2(device);
+            loaded_scene2->accept(buildAccelStruct2);
+            tlas2 = buildAccelStruct2.tlas;
+
             lookAt = vsg::LookAt::create(vsg::dvec3(0.0, 1.0, -5.0), vsg::dvec3(0.0, 0.5, 0.0), vsg::dvec3(0.0, 1.0, 0.0));
         }
 
@@ -268,6 +283,7 @@ int main(int argc, char** argv)
 
         // create DescriptorSets and binding to bind our TopLevelAcceleration structure, storage image and camera matrix uniforms
         auto accelDescriptor = vsg::DescriptorAccelerationStructure::create(vsg::AccelerationStructures{tlas}, 0, 0);
+        auto accelDescriptor2 = vsg::DescriptorAccelerationStructure::create(vsg::AccelerationStructures{tlas2}, 0, 0);
 
         auto storageImageDescriptor = vsg::DescriptorImage::create(storageImageInfo, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
@@ -285,6 +301,7 @@ int main(int argc, char** argv)
         auto raytracingPipeline = vsg::RayTracingPipeline::create(pipelineLayout, shaderStages, shaderGroups, shaderBindingTable, 0);
         auto bindRayTracingPipeline = vsg::BindRayTracingPipeline::create(raytracingPipeline);
 
+        //auto descriptors2 = vsg::Descriptors{ accelDescriptor2, storageImageDescriptor, raytracingUniformDescriptor };
         auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{accelDescriptor, storageImageDescriptor, raytracingUniformDescriptor});
         auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->getPipelineLayout(), 0, vsg::DescriptorSets{descriptorSet});
 
@@ -337,21 +354,23 @@ int main(int argc, char** argv)
         vsg::ref_ptr<vsg::CompileTraversal> compileTraversal;
         vsg::ref_ptr<vsg::Context> context;
         vsg::ref_ptr<vsg::AccelerationStructure> dummy;
+        vsg::ref_ptr<vsg::CompileTraversal> dummyCompileTraversal;
+        vsg::ref_ptr<vsg::DescriptorAccelerationStructure> dummyDescriptorAccelerationStructure;
 
         // rendering main loop
         int frameCount = 0;
         while (viewer->advanceToNextFrame() && (numFrames < 0 || (numFrames--) > 0))
         {
-            if (frameCount == 100)
+            if (frameCount == 0)
             {
-                std::cout << "100" << std::endl;
+                std::cout << "0" << std::endl;
 
                 tlas->geometryInstances[0]->transform = vsg::translate(-1.5f, 0.0f, 0.0f);
 
                 bindDescriptorSets->type = 1;
                 scenegraph->addChild(bindDescriptorSets);
 
-                compileTraversal = compileNode(bindDescriptorSets, dummy, window, viewport, false);
+                compileTraversal = compileNode(bindDescriptorSets, dummy, window, viewport, false, dummyCompileTraversal, false, dummyDescriptorAccelerationStructure, false);
                 context = &compileTraversal->context;
                 
             }
@@ -382,8 +401,91 @@ int main(int argc, char** argv)
                 //context->record();
                 //context->waitForCompletion();
 
-                tlas->update = true;
-                auto tlasCompileTraversal = compileNode(tlas, tlas, window, viewport, true);
+                //tlas->update = true;
+                //auto tlasCompileTraversal = compileNode(tlas, tlas, window, viewport, true);
+
+                //auto tlasCompileTraversal2 = compileNode(tlas2, tlas2, window, viewport, true, dummyCompileTraversal, false);
+                //auto tlasCompileTraversal2 = compileNode(accelDescriptor2, dummy, window, viewport, false, dummyCompileTraversal, false);
+                auto tlasCompileTraversal2 = compileNode(accelDescriptor2, dummy, window, viewport, false, compileTraversal, true, accelDescriptor2, true);
+
+                //compileNode(accelDescriptor2, dummy, window, viewport, false);
+                //descriptorSet->_implementation[context->deviceID]->assign(*context, descriptors2);
+
+
+
+                //descriptorSet->_implementation[context->deviceID] = nullptr;
+
+                //descriptorSet->descriptors = descriptors2;
+                //compileNode(descriptorSet, dummy, window, viewport, false, compileTraversal, true);
+
+
+
+                std::cout << "TEST1" << std::endl;
+
+                VkWriteDescriptorSet* descriptorWrites = context->scratchMemory->allocate<VkWriteDescriptorSet>(1);
+
+                std::cout << "TEST2" << std::endl;
+
+
+
+                VkWriteDescriptorSetAccelerationStructureKHR* asDescriptorWrites = context->scratchMemory->allocate<VkWriteDescriptorSetAccelerationStructureKHR>(1);
+
+                std::cout << "TEST2" << std::endl;
+
+
+                asDescriptorWrites->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+                asDescriptorWrites->accelerationStructureCount = static_cast<uint32_t>(accelDescriptor2->_vkAccelerationStructures.size());
+                asDescriptorWrites->pAccelerationStructures = accelDescriptor2->_vkAccelerationStructures.data();
+                asDescriptorWrites->pNext = nullptr;
+
+
+                //*descriptorWrites = {};
+                descriptorWrites->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites->dstBinding = accelDescriptor2->dstBinding;
+                descriptorWrites->dstArrayElement = accelDescriptor2->dstArrayElement;
+                descriptorWrites->descriptorType = accelDescriptor2->descriptorType;
+
+                descriptorWrites->descriptorCount = static_cast<uint32_t>(accelDescriptor2->_vkAccelerationStructures.size());
+                descriptorWrites->pNext = asDescriptorWrites;
+
+                //accelDescriptor2->assignTo(*context, descriptorWrites[0]);
+                descriptorWrites->dstSet = descriptorSet->_implementation[context->deviceID]->_descriptorSet;
+
+                std::cout << "TEST3" << std::endl;
+
+                std::cout << device->getDevice() << std::endl;
+                std::cout << static_cast<uint32_t>(1) << std::endl;
+
+                std::cout << descriptorWrites->dstSet << std::endl;
+                std::cout << descriptorWrites->dstBinding << std::endl;
+                std::cout << descriptorWrites->dstArrayElement << std::endl;
+                std::cout << descriptorWrites->descriptorCount << std::endl;
+                std::cout << descriptorWrites->descriptorType << std::endl;
+                std::cout << descriptorWrites->pImageInfo << std::endl;
+                std::cout << descriptorWrites->pBufferInfo << std::endl;
+                std::cout << descriptorWrites->pTexelBufferView << std::endl;
+
+
+                std::cout << asDescriptorWrites->sType << std::endl;
+                std::cout << asDescriptorWrites->accelerationStructureCount << std::endl;
+                std::cout << asDescriptorWrites->pAccelerationStructures << std::endl;
+                std::cout << asDescriptorWrites->pNext << std::endl;
+
+
+                std::cout << "TEST4" << std::endl;
+
+                vkUpdateDescriptorSets(device->getDevice(), static_cast<uint32_t>(1), descriptorWrites, 0, nullptr);
+
+                // clean up scratch memory so it can be reused.
+                context->scratchMemory->release();
+
+                std::cout << "TEST END" << std::endl;
+
+
+
+
+                //tlas2->update = true;
+                //auto tlasCompileTraversal = compileNode(tlas2, tlas2, window, viewport, true);
                 
 
             }
