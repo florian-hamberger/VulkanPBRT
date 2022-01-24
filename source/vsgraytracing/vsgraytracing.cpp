@@ -227,8 +227,10 @@ int main(int argc, char** argv)
         }
         else
         {
+            //vsg::Path filename2 = "models/raytracing_scene.vsgt";
+            vsg::Path filename2 = filename;
             auto loaded_scene = vsg::read_cast<vsg::Node>(filename, options);
-            auto loaded_scene2 = vsg::read_cast<vsg::Node>(filename, options);
+            auto loaded_scene2 = vsg::read_cast<vsg::Node>(filename2, options);
             if (!loaded_scene)
             {
                 std::cout << "Could not load model : " << filename << std::endl;
@@ -302,6 +304,7 @@ int main(int argc, char** argv)
         auto bindRayTracingPipeline = vsg::BindRayTracingPipeline::create(raytracingPipeline);
 
         //auto descriptors2 = vsg::Descriptors{ accelDescriptor2, storageImageDescriptor, raytracingUniformDescriptor };
+        auto descriptors2 = vsg::Descriptors{ accelDescriptor2 };
         auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{accelDescriptor, storageImageDescriptor, raytracingUniformDescriptor});
         auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->getPipelineLayout(), 0, vsg::DescriptorSets{descriptorSet});
 
@@ -378,115 +381,14 @@ int main(int argc, char** argv)
             {
                 std::cout << "200" << std::endl;
 
-                //int index = -1;
-                //auto children = scenegraph->children;
-                //std::cout << std::to_string(children.size()) << std::endl;
-                //for (int i = 0; i < children.size(); ++i) {
-                //    auto command = children[i];
-                //    if (command->type == 1) {
-                //        index = i;
-                //        break;
-                //    }
-                //}
-                //if (index >= 0) {
-                //    children.erase(children.begin() + index);
-                //}
-                //std::cout << std::to_string(children.size()) << std::endl;
+                context->buildAccelerationStructureCommands.clear();
 
+                descriptorSet->release();
+                descriptorSet->descriptors = descriptors2;
+                descriptorSet->compile(*context);
 
-                //scenegraph->addChild(bindDescriptorSets);
-                //tlas->geometryInstances[0]->transform = vsg::translate(-1.5f, 0.0f, 0.0f);
-                //compileNode(bindDescriptorSets, window, viewport);
-                
-                //context->record();
-                //context->waitForCompletion();
-
-                //tlas->update = true;
-                //auto tlasCompileTraversal = compileNode(tlas, tlas, window, viewport, true);
-
-                //auto tlasCompileTraversal2 = compileNode(tlas2, tlas2, window, viewport, true, dummyCompileTraversal, false);
-                //auto tlasCompileTraversal2 = compileNode(accelDescriptor2, dummy, window, viewport, false, dummyCompileTraversal, false);
-                auto tlasCompileTraversal2 = compileNode(accelDescriptor2, dummy, window, viewport, false, compileTraversal, true, accelDescriptor2, true);
-
-                //compileNode(accelDescriptor2, dummy, window, viewport, false);
-                //descriptorSet->_implementation[context->deviceID]->assign(*context, descriptors2);
-
-
-
-                //descriptorSet->_implementation[context->deviceID] = nullptr;
-
-                //descriptorSet->descriptors = descriptors2;
-                //compileNode(descriptorSet, dummy, window, viewport, false, compileTraversal, true);
-
-
-
-                std::cout << "TEST1" << std::endl;
-
-                VkWriteDescriptorSet* descriptorWrites = context->scratchMemory->allocate<VkWriteDescriptorSet>(1);
-
-                std::cout << "TEST2" << std::endl;
-
-
-
-                VkWriteDescriptorSetAccelerationStructureKHR* asDescriptorWrites = context->scratchMemory->allocate<VkWriteDescriptorSetAccelerationStructureKHR>(1);
-
-                std::cout << "TEST2" << std::endl;
-
-
-                asDescriptorWrites->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-                asDescriptorWrites->accelerationStructureCount = static_cast<uint32_t>(accelDescriptor2->_vkAccelerationStructures.size());
-                asDescriptorWrites->pAccelerationStructures = accelDescriptor2->_vkAccelerationStructures.data();
-                asDescriptorWrites->pNext = nullptr;
-
-
-                //*descriptorWrites = {};
-                descriptorWrites->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                descriptorWrites->dstBinding = accelDescriptor2->dstBinding;
-                descriptorWrites->dstArrayElement = accelDescriptor2->dstArrayElement;
-                descriptorWrites->descriptorType = accelDescriptor2->descriptorType;
-
-                descriptorWrites->descriptorCount = static_cast<uint32_t>(accelDescriptor2->_vkAccelerationStructures.size());
-                descriptorWrites->pNext = asDescriptorWrites;
-
-                //accelDescriptor2->assignTo(*context, descriptorWrites[0]);
-                descriptorWrites->dstSet = descriptorSet->_implementation[context->deviceID]->_descriptorSet;
-
-                std::cout << "TEST3" << std::endl;
-
-                std::cout << device->getDevice() << std::endl;
-                std::cout << static_cast<uint32_t>(1) << std::endl;
-
-                std::cout << descriptorWrites->dstSet << std::endl;
-                std::cout << descriptorWrites->dstBinding << std::endl;
-                std::cout << descriptorWrites->dstArrayElement << std::endl;
-                std::cout << descriptorWrites->descriptorCount << std::endl;
-                std::cout << descriptorWrites->descriptorType << std::endl;
-                std::cout << descriptorWrites->pImageInfo << std::endl;
-                std::cout << descriptorWrites->pBufferInfo << std::endl;
-                std::cout << descriptorWrites->pTexelBufferView << std::endl;
-
-
-                std::cout << asDescriptorWrites->sType << std::endl;
-                std::cout << asDescriptorWrites->accelerationStructureCount << std::endl;
-                std::cout << asDescriptorWrites->pAccelerationStructures << std::endl;
-                std::cout << asDescriptorWrites->pNext << std::endl;
-
-
-                std::cout << "TEST4" << std::endl;
-
-                vkUpdateDescriptorSets(device->getDevice(), static_cast<uint32_t>(1), descriptorWrites, 0, nullptr);
-
-                // clean up scratch memory so it can be reused.
-                context->scratchMemory->release();
-
-                std::cout << "TEST END" << std::endl;
-
-
-
-
-                //tlas2->update = true;
-                //auto tlasCompileTraversal = compileNode(tlas2, tlas2, window, viewport, true);
-                
+                context->record();
+                context->waitForCompletion();
 
             }
 
