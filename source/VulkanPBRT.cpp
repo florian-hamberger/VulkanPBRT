@@ -14,6 +14,7 @@
 #include "io/RenderIO.hpp"
 
 #include "terrain/TerrainImporter.hpp"
+#include "terrain/TerrainPipeline.hpp"
 
 #include "Gui.hpp"
 
@@ -367,15 +368,18 @@ int main(int argc, char** argv){
         
         // raytracing pipeline setup
         uint32_t maxRecursionDepth = 0;
-        vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
+        //vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
+        vsg::ref_ptr<TerrainPipeline> terrainPipeline;
         if(!externalRenderings)
         {
-            pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
+            //pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
+            terrainPipeline = TerrainPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
 
             // setup tlas
             vsg::BuildAccelerationStructureTraversal buildAccelStruct(device);
             loaded_scene->accept(buildAccelStruct);
-            pbrtPipeline->setTlas(buildAccelStruct.tlas);      
+            //pbrtPipeline->setTlas(buildAccelStruct.tlas);
+            terrainPipeline->setTlas(buildAccelStruct.tlas);
         }
         else{
             if(!gBuffer)
@@ -395,9 +399,13 @@ int main(int argc, char** argv){
         auto commands = vsg::Commands::create();
         auto offlineGBufferStager = OfflineGBuffer::create();
         auto offlineIlluminationBufferStager = OfflineIllumination::create();
-        if(pbrtPipeline){
-            pbrtPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
-            illuminationBuffer = pbrtPipeline->getIlluminationBuffer();
+        //if (pbrtPipeline) {
+        //    pbrtPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
+        //    illuminationBuffer = pbrtPipeline->getIlluminationBuffer();
+        //}
+        if (terrainPipeline) {
+            terrainPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
+            illuminationBuffer = terrainPipeline->getIlluminationBuffer();
         }
         else{
             if(offlineGBuffers.size() < numFrames || offlineIlluminations.size() < numFrames){
