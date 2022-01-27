@@ -162,7 +162,7 @@ int main(int argc, char** argv){
         bool useFlyNavigation = arguments.read("--fly");
 #ifdef _DEBUG
         // overwriting command line options for debug
-        windowTraits->debugLayer = true;
+        //windowTraits->debugLayer = true;
         windowTraits->width = 1800;
         windowTraits->height = 990;
 #endif
