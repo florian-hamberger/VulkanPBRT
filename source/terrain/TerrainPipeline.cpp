@@ -22,10 +22,10 @@ namespace
 }
 
 TerrainPipeline::TerrainPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
-                 vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin) : 
+                 vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin, uint32_t maxRecursionDepth) :
     width(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.width), 
     height(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.height), 
-    maxRecursionDepth(2), 
+    maxRecursionDepth(maxRecursionDepth),
     accumulationBuffer(accumulationBuffer),
     illuminationBuffer(illuminationBuffer),
     gBuffer(gBuffer)
@@ -49,6 +49,78 @@ void TerrainPipeline::setTlas(vsg::ref_ptr<vsg::AccelerationStructure> as)
     auto accelDescriptor = vsg::DescriptorAccelerationStructure::create(vsg::AccelerationStructures{as}, 0, 0);
     bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(accelDescriptor);
 }
+
+void TerrainPipeline::updateTlas(vsg::ref_ptr<vsg::AccelerationStructure> as, vsg::ref_ptr<vsg::Context> context)
+{
+    auto tlas = as.cast<vsg::TopLevelAccelerationStructure>();
+    assert(tlas);
+    for (int i = 0; i < tlas->geometryInstances.size(); ++i)
+    {
+        if (opaqueGeometries[i])
+            tlas->geometryInstances[i]->shaderOffset = 0;
+        else
+            tlas->geometryInstances[i]->shaderOffset = 1;
+        tlas->geometryInstances[i]->flags = VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
+    }
+    auto accelDescriptor = vsg::DescriptorAccelerationStructure::create(vsg::AccelerationStructures{ as }, 0, 0);
+
+    //bindRayTracingDescriptorSet->descriptorSet->descriptors = vsg::Descriptors{ accelDescriptor };
+
+    auto descriptorSet = bindRayTracingDescriptorSet->descriptorSet;
+    int index = -1;
+    for (int i = 0; i < descriptorSet->descriptors.size(); ++i) {
+        if (descriptorSet->descriptors[i]->dstBinding == 0 && descriptorSet->descriptors[i]->dstArrayElement == 0 && descriptorSet->descriptors[i]->descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) {
+            index = i;
+
+            std::cout << "found descriptor to remove: " << index << std::endl;
+            break;
+        }
+    }
+    if (index >= 0) {
+        std::cout << "removing descriptor: " << index << std::endl;
+        descriptorSet->descriptors.erase(descriptorSet->descriptors.begin() + index);
+        //descriptors[index] = accelDescriptor;
+    }
+    //bindRayTracingDescriptorSet->descriptorSet->descriptors.clear();
+
+    bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(accelDescriptor);
+
+    bindRayTracingDescriptorSet->descriptorSet->release();
+    bindRayTracingDescriptorSet->descriptorSet->compile(*context);
+}
+
+void TerrainPipeline::updateScene(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<vsg::Context> context) {
+    // parsing data from scene
+    RayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
+    scene->accept(buildDescriptorBinding);
+    opaqueGeometries = buildDescriptorBinding.isOpaque;
+
+    const int maxLights = 800;
+    if (buildDescriptorBinding.packedLights.size() > maxLights) lightSamplingMethod = LightSamplingMethod::SampleUniform;
+
+
+    bindRayTracingDescriptorSet->descriptorSet->descriptors.clear();
+
+    buildDescriptorBinding.updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+
+    //// creating the constant infos uniform buffer object
+    //auto constantInfos = ConstantInfosValue::create();
+    //constantInfos->value().lightCount = buildDescriptorBinding.packedLights.size();
+    //constantInfos->value().lightStrengthSum = buildDescriptorBinding.packedLights.back().inclusiveStrength;
+    //constantInfos->value().maxRecursionDepth = maxRecursionDepth;
+    //uint32_t uniformBufferBinding = vsg::ShaderStage::getSetBindingIndex(bindingMap, "Infos").second;
+    //auto constantInfosDescriptor = vsg::DescriptorBuffer::create(constantInfos, uniformBufferBinding, 0);
+    //bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(constantInfosDescriptor);
+
+    //// update the descriptor sets
+    //illuminationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    //if (gBuffer)
+    //    gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    //if (accumulationBuffer)
+    //    accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+
+}
+
 void TerrainPipeline::compile(vsg::Context &context)
 {
     illuminationBuffer->compile(context);

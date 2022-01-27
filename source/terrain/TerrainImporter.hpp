@@ -78,9 +78,11 @@ enum aiTextureMapMode
 class TerrainImporter : public vsg::Inherit<vsg::Object, TerrainImporter>
 {
 public:
-    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainVertexHeightToPixelRatio, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod);
+    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainVertexHeightToPixelRatio, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test);
 
     vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain();
+
+    vsg::ref_ptr<vsg::Node> loadedScene;
 
 private:
     using StateCommandPtr = vsg::ref_ptr<vsg::StateCommand>;
@@ -94,6 +96,8 @@ private:
     bool textureFormatS3tc;
     int heightmapLod;
     int textureLod;
+
+    int test;
 
 
 
@@ -116,7 +120,7 @@ private:
     int textureFullHeight;
 
     uint32_t TerrainImporter::getVertexIndex(int x, int y, int width);
-    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int tileStartX, int tileStartY);
+    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int tileStartX, int tileStartY, float heightOffset);
     vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);
     vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
     TerrainImporter::State TerrainImporter::loadTextureMaterials();

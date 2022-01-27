@@ -78,7 +78,8 @@ namespace vsg
         /// pass the Events into the any register EventHandlers
         virtual void handleEvents();
 
-        virtual void compile(ref_ptr<ResourceHints> hints = {});
+        //virtual void compile(ref_ptr<ResourceHints> hints = {});
+        vsg::ref_ptr<vsg::CompileTraversal> Viewer::compile(ref_ptr<vsg::Device> device, ref_ptr<ResourceHints> hints = {});
 
         virtual bool acquireNextFrame();
 

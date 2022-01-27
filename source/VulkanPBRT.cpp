@@ -15,6 +15,7 @@
 
 #include "terrain/TerrainImporter.hpp"
 #include "terrain/TerrainPipeline.hpp"
+#include "terrain/TerrainAccelerationStructureManager.hpp"
 
 #include "Gui.hpp"
 
@@ -138,6 +139,7 @@ int main(int argc, char** argv){
         bool textureFormatS3tc = arguments.read("--s3tc");
         auto terrainHeightmapLod = arguments.value(-1, "-thl");
         auto terrainTextureLod = arguments.value(terrainHeightmapLod, "-txl");
+        auto terrainMaxRecursionDepth = arguments.value((uint32_t) 0, "-r");
 
         if (sceneFilename.empty() && !externalRenderings && terrainHeightmapFilename.empty())
         {
@@ -181,11 +183,12 @@ int main(int argc, char** argv){
 
         // load scene or images
         vsg::ref_ptr<vsg::Node> loaded_scene;
+        vsg::ref_ptr<vsg::Node> loaded_scene2;
         std::vector<vsg::ref_ptr<OfflineGBuffer>> offlineGBuffers;
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
         if (!terrainHeightmapFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod);
+            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 0);
             loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
                 std::cout << "Terrain heightmap not found: " << terrainHeightmapFilename << std::endl;
@@ -329,7 +332,8 @@ int main(int argc, char** argv){
 
         //create camera matrices
         auto perspective = vsg::Perspective::create(60, static_cast<double>(windowTraits->width) / static_cast<double>(windowTraits->height), .1, 1000);
-        auto lookAt = vsg::LookAt::create(vsg::dvec3(0.0, -3, 1), vsg::dvec3(0.0, 0.0, 1), vsg::dvec3(0.0, 0.0, 1.0));
+        //auto lookAt = vsg::LookAt::create(vsg::dvec3(0.0, -3, 1), vsg::dvec3(0.0, 0.0, 1), vsg::dvec3(0.0, 0.0, 1.0));
+        auto lookAt = vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 1.0), vsg::dvec3(1.0, -1.0, 1.0), vsg::dvec3(0.0, 0.0, 1.0));
 
         // set push constants
         auto rayTracingPushConstantsValue = RayTracingPushConstantsValue::create();
@@ -367,13 +371,13 @@ int main(int argc, char** argv){
         }
         
         // raytracing pipeline setup
-        uint32_t maxRecursionDepth = 0;
+        uint32_t maxRecursionDepth = terrainMaxRecursionDepth;
         //vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
         vsg::ref_ptr<TerrainPipeline> terrainPipeline;
         if(!externalRenderings)
         {
             //pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
-            terrainPipeline = TerrainPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
+            terrainPipeline = TerrainPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA, maxRecursionDepth);
 
             // setup tlas
             vsg::BuildAccelerationStructureTraversal buildAccelStruct(device);
@@ -620,10 +624,14 @@ int main(int argc, char** argv){
         else
             viewer->addEventHandler(vsg::Trackball::create(camera));
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
-        viewer->compile();
+        //viewer->compile();
+        auto compileTraversal = viewer->compile(device);
+        auto context = vsg::ref_ptr<vsg::Context>(&compileTraversal->context);
 
         // waiting for image layout transitions
         imageLayoutCompile.context.waitForCompletion();
+
+        vsg::ref_ptr<vsg::TopLevelAccelerationStructure> tlas2;
 
         int numFramesC = numFrames;
         while(viewer->advanceToNextFrame() && (numFrames < 0 || (numFrames--) > 0)){
@@ -635,6 +643,71 @@ int main(int argc, char** argv){
                 if(accumulator)
                     accumulator->setFrameIndex(frame);
             }
+
+            bool resetSamples = false;
+            if (rayTracingPushConstantsValue->value().frameNumber == 200) {
+                std::cout << "200" << std::endl;
+
+
+                //auto terrainImporter2 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 1);
+                auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod-1, terrainTextureLod-1, 0);
+                //loaded_scene2 = terrainImporter2->importTerrain();
+
+                //vsg::BuildAccelerationStructureTraversal buildAccelStruct2(device);
+                //loaded_scene2->accept(buildAccelStruct2);
+                //tlas2 = buildAccelStruct2.tlas;
+
+                auto tasManager = TerrainAccelerationStructureManager::create(1, 1, 1, context);
+                tasManager->loadLodLevel(terrainImporter3, 0);
+                //tasManager->loadLodLevel(terrainImporter2, 1);
+                tlas2 = tasManager->createTlas(0);
+
+
+
+                context->buildAccelerationStructureCommands.clear();
+
+                //tlas2->compile(*context);
+
+                //context->record();
+                //context->waitForCompletion();
+
+                terrainPipeline->updateScene(terrainImporter3->loadedScene, context);
+
+                //if (gBuffer)
+                //{
+                //    gBuffer->compile(imageLayoutCompile.context);
+                //    gBuffer->updateImageLayouts(imageLayoutCompile.context);
+                //}
+                //if (accumulationBuffer)
+                //{
+                //    accumulationBuffer->compile(imageLayoutCompile.context);
+                //    accumulationBuffer->updateImageLayouts(imageLayoutCompile.context);
+                //}
+                //if (illuminationBuffer)
+                //{
+                //    illuminationBuffer->compile(imageLayoutCompile.context);
+                //    illuminationBuffer->updateImageLayouts(imageLayoutCompile.context);
+                //}
+                //imageLayoutCompile.context.record();
+                //imageLayoutCompile.context.waitForCompletion();
+
+                terrainPipeline->updateTlas(tlas2, context);
+
+                context->record();
+                //context->waitForCompletion();
+
+                resetSamples = true;
+            }
+            //if (rayTracingPushConstantsValue->value().frameNumber == 1000) {
+            //    std::cout << "1000" << std::endl;
+
+            //    //terrainPipeline->updateTlas(tlas2, context);
+
+            //    //resetSamples = true;
+            //}
+
+
+
             
             viewer->handleEvents();
 
@@ -644,6 +717,7 @@ int main(int argc, char** argv){
             rayTracingPushConstantsValue->value().frameNumber++;
             rayTracingPushConstantsValue->value().sampleNumber++;
             if((vsg::mat4)vsg::lookAt(lookAt->eye, lookAt->center, lookAt->up) != rayTracingPushConstantsValue->value().prevView) rayTracingPushConstantsValue->value().sampleNumber = 0;
+            if(resetSamples) rayTracingPushConstantsValue->value().sampleNumber = 0;
             guiValues->sampleNumber = rayTracingPushConstantsValue->value().sampleNumber;
 
             viewer->update();
