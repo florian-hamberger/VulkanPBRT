@@ -21,7 +21,7 @@ void TerrainAccelerationStructureManager::loadLodLevel(vsg::ref_ptr<TerrainImpor
 
     for (uint32_t i = 0; i < tlas->geometryInstances.size(); ++i) {
         auto geometryInstance = tlas->geometryInstances[i];
-        blasTiles->at(i % tileCountX, i / tileCountY, lodLevel) = geometryInstance;
+        blasTiles->at(i % tileCountX, i / tileCountX, lodLevel) = geometryInstance;
     }
 
 

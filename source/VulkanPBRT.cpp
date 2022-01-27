@@ -140,6 +140,8 @@ int main(int argc, char** argv){
         auto terrainHeightmapLod = arguments.value(-1, "-thl");
         auto terrainTextureLod = arguments.value(terrainHeightmapLod, "-txl");
         auto terrainMaxRecursionDepth = arguments.value((uint32_t) 0, "-r");
+        auto terrainTilesX = arguments.value((uint32_t) 1, "--tilesx");
+        auto terrainTilesY = arguments.value((uint32_t) 1, "--tilesy");
 
         if (sceneFilename.empty() && !externalRenderings && terrainHeightmapFilename.empty())
         {
@@ -188,7 +190,7 @@ int main(int argc, char** argv){
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<DoubleMatrix> cameraMatrices;
         if (!terrainHeightmapFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 0);
+            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 0, terrainTilesX, terrainTilesY);
             loaded_scene = terrainImporter->importTerrain();
             if (!loaded_scene) {
                 std::cout << "Terrain heightmap not found: " << terrainHeightmapFilename << std::endl;
@@ -649,9 +651,9 @@ int main(int argc, char** argv){
                 std::cout << "200" << std::endl;
 
                 //auto terrainImporter2 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 1);
-                auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod-1, terrainTextureLod-1, 0);
+                auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod-1, terrainTextureLod-1, 0, terrainTilesX, terrainTilesY);
 
-                auto tasManager = TerrainAccelerationStructureManager::create(1, 1, 1, context);
+                auto tasManager = TerrainAccelerationStructureManager::create(terrainTilesX, terrainTilesY, 1, context);
                 tasManager->loadLodLevel(terrainImporter3, 0);
                 //tasManager->loadLodLevel(terrainImporter2, 1);
                 tlas2 = tasManager->createTlas(0);

@@ -1,7 +1,7 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod), test(test) {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test, uint32_t tileCountX, uint32_t tileCountY) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod), test(test), tileCountX(tileCountX), tileCountY(tileCountY) {
 
 }
 
@@ -195,14 +195,11 @@ vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int 
     int x = xTile + tileStartX;
     int y = yTile + tileStartY;
 
-    float scaleModifier = terrainScale * 10.0f;
-
     float heightmapValue;
     if (terrainFormatLa2d) {
         heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y, heightmapFullWidth)];
         heightmapValue = heightmapValue + heightOffset;
         heightmapValue *= heightmapActualWidth;
-        scaleModifier /= heightmapActualWidth;
 
         heightmapValue *= 0.000019f;
     }
@@ -210,7 +207,6 @@ vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int 
         heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);
         heightmapValue /= 256.0f; // normalize height to [0, 1)
         heightmapValue *= heightmapFullWidth;
-        scaleModifier /= heightmapFullWidth;
 
         heightmapValue *= 0.02f;
     }
@@ -236,6 +232,13 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 
     float heightOffset = -heightmapLa2dBuffer[0];
 
+    scaleModifier = terrainScale * 10.0f;
+    if (terrainFormatLa2d) {
+        scaleModifier /= heightmapActualWidth;
+    } else {
+        scaleModifier /= heightmapFullWidth;
+    }
+
     auto root = vsg::MatrixTransform::create();
     root->matrix = vsg::rotate(vsg::PI * 0.5 * test, 0.0, 0.0, 1.0);
 
@@ -249,18 +252,16 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 
     //auto node = rootNode->mChildren[0];
 
-    int numTilesX = 1;
-    int numTilesY = 1;
-    for (int tileY = 0; tileY < numTilesY; ++tileY)
+    for (int tileY = 0; tileY < tileCountY; ++tileY)
     {
-        for (int tileX = 0; tileX < numTilesX; ++tileX)
+        for (int tileX = 0; tileX < tileCountX; ++tileX)
         {
-            int tileStartX = (heightmapActualWidth - 1) * tileX / numTilesX;
-            int tileEndX = (heightmapActualWidth - 1) * (tileX + 1) / numTilesX;
+            int tileStartX = (heightmapActualWidth - 1) * tileX / tileCountX;
+            int tileEndX = (heightmapActualWidth - 1) * (tileX + 1) / tileCountX;
             int tileWidth = tileEndX - tileStartX + 1;
 
-            int tileStartY = (heightmapActualHeight - 1) * tileY / numTilesY;
-            int tileEndY = (heightmapActualHeight - 1) * (tileY + 1) / numTilesY;
+            int tileStartY = (heightmapActualHeight - 1) * tileY / tileCountY;
+            int tileEndY = (heightmapActualHeight - 1) * (tileY + 1) / tileCountY;
             int tileHeight = tileEndY - tileStartY + 1;
 
 
@@ -311,7 +312,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 
 
             auto xform = vsg::MatrixTransform::create();
-            xform->matrix = vsg::translate(double(tileStartX), 1.0, double(tileStartY));
+            xform->matrix = vsg::translate(double(tileStartX) * scaleModifier, -double(tileStartY) * scaleModifier, 0.0);
             scenegraph->addChild(xform);
 
             auto stategroup = vsg::StateGroup::create();

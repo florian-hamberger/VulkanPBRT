@@ -85,6 +85,8 @@ void TerrainPipeline::updateTlas(vsg::ref_ptr<vsg::AccelerationStructure> as, vs
 
     bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(accelDescriptor);
 
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
+
     bindRayTracingDescriptorSet->descriptorSet->release();
     bindRayTracingDescriptorSet->descriptorSet->compile(*context);
 }
@@ -98,26 +100,31 @@ void TerrainPipeline::updateScene(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<vs
     const int maxLights = 800;
     if (buildDescriptorBinding.packedLights.size() > maxLights) lightSamplingMethod = LightSamplingMethod::SampleUniform;
 
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
 
     bindRayTracingDescriptorSet->descriptorSet->descriptors.clear();
 
     buildDescriptorBinding.updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
 
-    //// creating the constant infos uniform buffer object
-    //auto constantInfos = ConstantInfosValue::create();
-    //constantInfos->value().lightCount = buildDescriptorBinding.packedLights.size();
-    //constantInfos->value().lightStrengthSum = buildDescriptorBinding.packedLights.back().inclusiveStrength;
-    //constantInfos->value().maxRecursionDepth = maxRecursionDepth;
-    //uint32_t uniformBufferBinding = vsg::ShaderStage::getSetBindingIndex(bindingMap, "Infos").second;
-    //auto constantInfosDescriptor = vsg::DescriptorBuffer::create(constantInfos, uniformBufferBinding, 0);
-    //bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(constantInfosDescriptor);
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
 
-    //// update the descriptor sets
-    //illuminationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
-    //if (gBuffer)
-    //    gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
-    //if (accumulationBuffer)
-    //    accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    //// creating the constant infos uniform buffer object
+    auto constantInfos = ConstantInfosValue::create();
+    constantInfos->value().lightCount = buildDescriptorBinding.packedLights.size();
+    constantInfos->value().lightStrengthSum = buildDescriptorBinding.packedLights.back().inclusiveStrength;
+    constantInfos->value().maxRecursionDepth = maxRecursionDepth;
+    uint32_t uniformBufferBinding = vsg::ShaderStage::getSetBindingIndex(bindingMap, "Infos").second;
+    auto constantInfosDescriptor = vsg::DescriptorBuffer::create(constantInfos, uniformBufferBinding, 0);
+    bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(constantInfosDescriptor);
+
+    // update the descriptor sets
+    illuminationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    if (gBuffer)
+        gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    if (accumulationBuffer)
+        accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
 
 }
 
