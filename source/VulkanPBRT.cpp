@@ -648,48 +648,19 @@ int main(int argc, char** argv){
             if (rayTracingPushConstantsValue->value().frameNumber == 200) {
                 std::cout << "200" << std::endl;
 
-
                 //auto terrainImporter2 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 1);
                 auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod-1, terrainTextureLod-1, 0);
-                //loaded_scene2 = terrainImporter2->importTerrain();
-
-                //vsg::BuildAccelerationStructureTraversal buildAccelStruct2(device);
-                //loaded_scene2->accept(buildAccelStruct2);
-                //tlas2 = buildAccelStruct2.tlas;
 
                 auto tasManager = TerrainAccelerationStructureManager::create(1, 1, 1, context);
                 tasManager->loadLodLevel(terrainImporter3, 0);
                 //tasManager->loadLodLevel(terrainImporter2, 1);
                 tlas2 = tasManager->createTlas(0);
 
-
-
                 context->buildAccelerationStructureCommands.clear();
 
                 //tlas2->compile(*context);
 
-                //context->record();
-                //context->waitForCompletion();
-
                 terrainPipeline->updateScene(terrainImporter3->loadedScene, context);
-
-                //if (gBuffer)
-                //{
-                //    gBuffer->compile(imageLayoutCompile.context);
-                //    gBuffer->updateImageLayouts(imageLayoutCompile.context);
-                //}
-                //if (accumulationBuffer)
-                //{
-                //    accumulationBuffer->compile(imageLayoutCompile.context);
-                //    accumulationBuffer->updateImageLayouts(imageLayoutCompile.context);
-                //}
-                //if (illuminationBuffer)
-                //{
-                //    illuminationBuffer->compile(imageLayoutCompile.context);
-                //    illuminationBuffer->updateImageLayouts(imageLayoutCompile.context);
-                //}
-                //imageLayoutCompile.context.record();
-                //imageLayoutCompile.context.waitForCompletion();
 
                 terrainPipeline->updateTlas(tlas2, context);
 
