@@ -2,9 +2,9 @@
 
 #include <buffers/GBuffer.hpp>
 #include <buffers/IlluminationBuffer.hpp>
-#include <scene/RayTracingVisitor.hpp>
 #include <buffers/AccumulationBuffer.hpp>
 #include <renderModules/PBRTPipeline.hpp>
+#include <terrain/TerrainRayTracingVisitor.hpp>
 
 #include <vsg/all.h>
 #include <vsgXchange/glsl.h>

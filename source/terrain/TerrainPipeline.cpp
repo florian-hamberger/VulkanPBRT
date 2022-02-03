@@ -93,7 +93,7 @@ void TerrainPipeline::updateTlas(vsg::ref_ptr<vsg::AccelerationStructure> as, vs
 
 void TerrainPipeline::updateScene(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<vsg::Context> context) {
     // parsing data from scene
-    RayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
+    TerrainRayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
     scene->accept(buildDescriptorBinding);
     opaqueGeometries = buildDescriptorBinding.isOpaque;
 
@@ -155,7 +155,7 @@ vsg::ref_ptr<IlluminationBuffer> TerrainPipeline::getIlluminationBuffer() const
 void TerrainPipeline::setupPipeline(vsg::Node *scene, bool useExternalGbuffer)
 {
     // parsing data from scene
-    RayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
+    TerrainRayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
     scene->accept(buildDescriptorBinding);
     opaqueGeometries = buildDescriptorBinding.isOpaque;
 
