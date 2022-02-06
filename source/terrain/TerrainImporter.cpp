@@ -1,7 +1,7 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test, uint32_t tileCountX, uint32_t tileCountY) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod), test(test), tileCountX(tileCountX), tileCountY(tileCountY) {
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test, uint32_t tileCountX, uint32_t tileCountY, int tileLengthLodFactor) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod), test(test), tileCountX(tileCountX), tileCountY(tileCountY), tileLengthLodFactor(tileLengthLodFactor) {
 
 }
 
@@ -195,20 +195,23 @@ vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int 
     int x = xTile + tileStartX;
     int y = yTile + tileStartY;
 
-    float heightmapValue;
-    if (terrainFormatLa2d) {
-        heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y, heightmapFullWidth)];
-        heightmapValue = heightmapValue + heightOffset;
-        heightmapValue *= heightmapActualWidth;
 
-        heightmapValue *= 0.000019f;
-    }
-    else {
-        heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);
-        heightmapValue /= 256.0f; // normalize height to [0, 1)
-        heightmapValue *= heightmapFullWidth;
+    float heightmapValue = 0.0f;
+    if (x < heightmapFullWidth && y < heightmapFullHeight) {
+        if (terrainFormatLa2d) {
+            heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y, heightmapFullWidth)];
+            heightmapValue = heightmapValue + heightOffset;
+            heightmapValue *= heightmapActualWidth;
 
-        heightmapValue *= 0.02f;
+            heightmapValue *= 0.000019f;
+        }
+        else {
+            heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);
+            heightmapValue /= 256.0f; // normalize height to [0, 1)
+            heightmapValue *= heightmapFullWidth;
+
+            heightmapValue *= 0.02f;
+        }
     }
     heightmapValue *= terrainScaleVertexHeight;
     return vsg::vec3(float(xTile) * scaleModifier, -float(yTile) * scaleModifier, heightmapValue * scaleModifier);
@@ -225,44 +228,70 @@ vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
 //using code from vsgXchange/assimp/assimp.cpp
 vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 {
-    //auto pipelineLayout = _defaultPipeline->layout;
-
-    //auto state = createTestMaterial();
-    auto state = loadTextureMaterials();
-
-    float heightOffset = -heightmapLa2dBuffer[0];
-
-    scaleModifier = terrainScale * 10.0f;
-    if (terrainFormatLa2d) {
-        scaleModifier /= heightmapActualWidth;
-    } else {
-        scaleModifier /= heightmapFullWidth;
-    }
-
     auto root = vsg::MatrixTransform::create();
     root->matrix = vsg::rotate(vsg::PI * 0.5 * test, 0.0, 0.0, 1.0);
 
     auto scenegraph = vsg::StateGroup::create();
-    //scenegraph->add(vsg::BindGraphicsPipeline::create(_defaultPipeline));
-    //scenegraph->add(_defaultState);
 
-    //auto rootNode = scene->mRootNode;
+    auto tileNodes = createTileNodes();
+    loadedTileNodes = tileNodes;
+    for (int tileY = 0; tileY < tileCountY; ++tileY) {
+        for (int tileX = 0; tileX < tileCountX; ++tileX) {
+            auto tileNode = tileNodes->at(tileX, tileY);
+            scenegraph->addChild(tileNode);
+        }
+    }
 
-    //auto [node, parent] = nodes.top();
+    root->addChild(scenegraph);
+    return root;
+}
 
-    //auto node = rootNode->mChildren[0];
+int powerOfTwo(int e) {
+    if (e == 0) {
+        return 1;
+    }
+    else {
+        return 2 * powerOfTwo(e - 1);
+    }
+}
+
+vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> TerrainImporter::createTileNodes()
+{
+    auto tileNodes = vsg::Array2D<vsg::ref_ptr<vsg::Node>>::create(tileCountX, tileCountY);
+
+    auto state = loadTextureMaterials();
+
+    float heightOffset = -heightmapLa2dBuffer[0];
+
+    scaleModifier = terrainScale * 20.0f;
+    if (terrainFormatLa2d) {
+        scaleModifier /= powerOfTwo(heightmapLod);
+    }
+    else {
+        scaleModifier /= heightmapFullWidth;
+    }
+
+    int tileLength = powerOfTwo(heightmapLod + tileLengthLodFactor);
 
     for (int tileY = 0; tileY < tileCountY; ++tileY)
     {
         for (int tileX = 0; tileX < tileCountX; ++tileX)
         {
-            int tileStartX = (heightmapActualWidth - 1) * tileX / tileCountX;
-            int tileEndX = (heightmapActualWidth - 1) * (tileX + 1) / tileCountX;
-            int tileWidth = tileEndX - tileStartX + 1;
+            //int tileStartX = (heightmapActualWidth - 1) * tileX / tileCountX;
+            //int tileEndX = (heightmapActualWidth - 1) * (tileX + 1) / tileCountX;
+            //int tileWidth = tileEndX - tileStartX + 1;
 
-            int tileStartY = (heightmapActualHeight - 1) * tileY / tileCountY;
-            int tileEndY = (heightmapActualHeight - 1) * (tileY + 1) / tileCountY;
-            int tileHeight = tileEndY - tileStartY + 1;
+            //int tileStartY = (heightmapActualHeight - 1) * tileY / tileCountY;
+            //int tileEndY = (heightmapActualHeight - 1) * (tileY + 1) / tileCountY;
+            //int tileHeight = tileEndY - tileStartY + 1;
+
+            int tileStartX = tileLength * tileX;
+            int tileEndX = tileLength * (tileX + 1);
+            int tileWidth = tileLength + 1;
+
+            int tileStartY = tileLength * tileY;
+            int tileEndY = tileLength * (tileY + 1);
+            int tileHeight = tileLength + 1;
 
 
             int numPixels = tileWidth * tileHeight;
@@ -313,7 +342,8 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 
             auto xform = vsg::MatrixTransform::create();
             xform->matrix = vsg::translate(double(tileStartX) * scaleModifier, -double(tileStartY) * scaleModifier, 0.0);
-            scenegraph->addChild(xform);
+            //scenegraph->addChild(xform);
+            tileNodes->set(tileX, tileY, xform);
 
             auto stategroup = vsg::StateGroup::create();
             xform->addChild(stategroup);
@@ -330,9 +360,7 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
         }
     }
 
-    root->addChild(scenegraph);
-
-    return root;
+    return tileNodes;
 }
 
 //using code from vsgXchange/assimp/assimp.cpp

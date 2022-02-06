@@ -8,12 +8,14 @@ TerrainAccelerationStructureManager::TerrainAccelerationStructureManager(uint32_
 {
 
     blasTiles = BlasTiles::create(tileCountX, tileCountY, lodLevels);
+    tileNodes = TileNodes::create(lodLevels);
 
 }
 
 void TerrainAccelerationStructureManager::loadLodLevel(vsg::ref_ptr<TerrainImporter> terrainImporter, uint32_t lodLevel)
 {
     auto loaded_scene = terrainImporter->importTerrain();
+    tileNodes->set(lodLevel, terrainImporter->loadedTileNodes);
 
     vsg::BuildAccelerationStructureTraversal buildAccelStruct(context->device);
     loaded_scene->accept(buildAccelStruct);
@@ -33,10 +35,42 @@ vsg::ref_ptr<vsg::TopLevelAccelerationStructure> TerrainAccelerationStructureMan
 
     for (uint32_t y = 0; y < tileCountY; ++y) {
         for (uint32_t x = 0; x < tileCountX; ++x) {
-            auto geometryInstance = blasTiles->at(x, y, lodLevel);
-            tlas->geometryInstances.push_back(geometryInstance);
+            if (x % 2 == y % 2) {
+                auto geometryInstance = blasTiles->at(x, y, lodLevel);
+                tlas->geometryInstances.push_back(geometryInstance);
+            } else {
+                auto geometryInstance = blasTiles->at(x, y, lodLevel+1);
+                tlas->geometryInstances.push_back(geometryInstance);
+            }
         }
     }
 
     return tlas;
+}
+
+vsg::ref_ptr<vsg::Node> TerrainAccelerationStructureManager::createScene(uint32_t lodLevel)
+{
+
+    auto root = vsg::MatrixTransform::create();
+    root->matrix = vsg::mat4();
+
+    auto scenegraph = vsg::StateGroup::create();
+
+    for (int y = 0; y < tileCountY; ++y) {
+        for (int x = 0; x < tileCountX; ++x) {
+            if (x % 2 == y % 2) {
+                auto tileNode = tileNodes->at(lodLevel)->at(x, y);
+                scenegraph->addChild(tileNode);
+            }
+            else {
+                auto tileNode = tileNodes->at(lodLevel+1)->at(x, y);
+                scenegraph->addChild(tileNode);
+            }
+            //auto tileNode = tileNodes->at(lodLevel + 1)->at(x, y);
+            //scenegraph->addChild(tileNode);
+        }
+    }
+
+    root->addChild(scenegraph);
+    return root;
 }
