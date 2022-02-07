@@ -2,7 +2,9 @@
 
 TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test, uint32_t tileCountX, uint32_t tileCountY, int tileLengthLodFactor) :
     heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod), test(test), tileCountX(tileCountX), tileCountY(tileCountY), tileLengthLodFactor(tileLengthLodFactor) {
-
+    if (heightmapLod < -tileLengthLodFactor) {
+        std::cout << "Error: TerrainImporter: heightmapLod < -tileLengthLodFactor!" << std::endl;
+    }
 }
 
 vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {

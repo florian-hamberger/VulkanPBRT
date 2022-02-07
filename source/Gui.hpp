@@ -21,6 +21,7 @@ public:
         int width;
         int height;
         uint32_t sampleNumber;
+        bool updateTerrainLodButtonPressed;
     };
 
     Gui(vsg::ref_ptr<Values> values): _values(values), _state({true})
@@ -34,16 +35,18 @@ public:
         ImGui::Begin("Test window");
 
         //here goes all needed settings
-        ImGui::Text("Your text here.");
-        ImGui::Checkbox("test check", &_values->testCheck);
-        ImGui::SliderFloat3("testFloatSlider", _values->testFloatSlider, 0, 100);
-        ImGui::ColorEdit4("testColor", _values->testColor);
-        ImGui::InputText("testTextInput", _values->testTextInput, 200);
+        //ImGui::Text("Your text here.");
+        //ImGui::Checkbox("test check", &_values->testCheck);
+        //ImGui::SliderFloat3("testFloatSlider", _values->testFloatSlider, 0, 100);
+        //ImGui::ColorEdit4("testColor", _values->testColor);
+        //ImGui::InputText("testTextInput", _values->testTextInput, 200);
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS) for %d triangles", 1000.0f / ImGui::GetIO().Framerate,
                     ImGui::GetIO().Framerate, _values->triangleCount);
         ImGui::Text("Render size is %d by %d with %d rays/pixel resulting in %.3f mRays/second", _values->width, _values->height,
                     _values->raysPerPixel, ImGui::GetIO().Framerate * _values->raysPerPixel * _values->width * _values->height / 1.0e6);
         ImGui::Text("Samples per pixel: %d", _values->sampleNumber);
+
+        _values->updateTerrainLodButtonPressed = ImGui::Button("Update Terrain LOD", ImVec2(0, 0));
 
         ImGui::End();
         return _state.active;

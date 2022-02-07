@@ -1,18 +1,18 @@
 #include "TerrainAccelerationStructureManager.hpp"
 
-TerrainAccelerationStructureManager::TerrainAccelerationStructureManager(uint32_t tileCountX, uint32_t tileCountY, uint32_t lodLevels, vsg::ref_ptr<vsg::Context> context) :
+TerrainAccelerationStructureManager::TerrainAccelerationStructureManager(uint32_t tileCountX, uint32_t tileCountY, uint32_t lodLevelCount, vsg::ref_ptr<vsg::Context> context) :
     tileCountX(tileCountX),
     tileCountY(tileCountY),
-    lodLevels(lodLevels),
+    lodLevelCount(lodLevelCount),
     context(context)
 {
 
-    blasTiles = BlasTiles::create(tileCountX, tileCountY, lodLevels);
-    tileNodes = TileNodes::create(lodLevels);
+    blasTiles = BlasTiles::create(tileCountX, tileCountY, lodLevelCount);
+    tileNodes = TileNodes::create(lodLevelCount);
 
 }
 
-void TerrainAccelerationStructureManager::loadLodLevel(vsg::ref_ptr<TerrainImporter> terrainImporter, uint32_t lodLevel)
+void TerrainAccelerationStructureManager::loadLodLevel(vsg::ref_ptr<TerrainImporter> terrainImporter, int lodLevel)
 {
     auto loaded_scene = terrainImporter->importTerrain();
     tileNodes->set(lodLevel, terrainImporter->loadedTileNodes);
@@ -29,26 +29,39 @@ void TerrainAccelerationStructureManager::loadLodLevel(vsg::ref_ptr<TerrainImpor
 
 }
 
-vsg::ref_ptr<vsg::TopLevelAccelerationStructure> TerrainAccelerationStructureManager::createTlas(uint32_t lodLevel)
+vsg::ref_ptr<vsg::TopLevelAccelerationStructure> TerrainAccelerationStructureManager::createTlas(int lodLevel, bool test)
 {
     auto tlas = vsg::TopLevelAccelerationStructure::create(context->device);
 
+    //for (uint32_t y = 0; y < tileCountY; ++y) {
+    //    for (uint32_t x = 0; x < tileCountX; ++x) {
+    //        if (x % 2 == y % 2) {
+    //            auto geometryInstance = blasTiles->at(x, y, lodLevel);
+    //            tlas->geometryInstances.push_back(geometryInstance);
+    //        }
+    //        else {
+    //            auto geometryInstance = blasTiles->at(x, y, lodLevel + 1);
+    //            tlas->geometryInstances.push_back(geometryInstance);
+    //        }
+    //    }
+    //}
+
     for (uint32_t y = 0; y < tileCountY; ++y) {
         for (uint32_t x = 0; x < tileCountX; ++x) {
-            if (x % 2 == y % 2) {
-                auto geometryInstance = blasTiles->at(x, y, lodLevel);
-                tlas->geometryInstances.push_back(geometryInstance);
-            } else {
-                auto geometryInstance = blasTiles->at(x, y, lodLevel+1);
-                tlas->geometryInstances.push_back(geometryInstance);
-            }
+            int lod = lodLevelCount - 1 - ((x + y) / 8);
+            if (lod < lodLevel) lod = lodLevel;
+
+            if (test) lod = lodLevel;
+
+            auto geometryInstance = blasTiles->at(x, y, lod);
+            tlas->geometryInstances.push_back(geometryInstance);
         }
     }
 
     return tlas;
 }
 
-vsg::ref_ptr<vsg::Node> TerrainAccelerationStructureManager::createScene(uint32_t lodLevel)
+vsg::ref_ptr<vsg::Node> TerrainAccelerationStructureManager::createScene(int lodLevel)
 {
 
     auto root = vsg::MatrixTransform::create();
@@ -56,18 +69,28 @@ vsg::ref_ptr<vsg::Node> TerrainAccelerationStructureManager::createScene(uint32_
 
     auto scenegraph = vsg::StateGroup::create();
 
+    //for (int y = 0; y < tileCountY; ++y) {
+    //    for (int x = 0; x < tileCountX; ++x) {
+    //        if (x % 2 == y % 2) {
+    //            auto tileNode = tileNodes->at(lodLevel)->at(x, y);
+    //            scenegraph->addChild(tileNode);
+    //        }
+    //        else {
+    //            auto tileNode = tileNodes->at(lodLevel + 1)->at(x, y);
+    //            scenegraph->addChild(tileNode);
+    //        }
+    //        //auto tileNode = tileNodes->at(lodLevel + 1)->at(x, y);
+    //        //scenegraph->addChild(tileNode);
+    //    }
+    //}
+
     for (int y = 0; y < tileCountY; ++y) {
         for (int x = 0; x < tileCountX; ++x) {
-            if (x % 2 == y % 2) {
-                auto tileNode = tileNodes->at(lodLevel)->at(x, y);
-                scenegraph->addChild(tileNode);
-            }
-            else {
-                auto tileNode = tileNodes->at(lodLevel+1)->at(x, y);
-                scenegraph->addChild(tileNode);
-            }
-            //auto tileNode = tileNodes->at(lodLevel + 1)->at(x, y);
-            //scenegraph->addChild(tileNode);
+            int lod = lodLevelCount - 1 - ((x + y) / 8);
+            if (lod < lodLevel) lod = lodLevel;
+
+            auto tileNode = tileNodes->at(lod)->at(x, y);
+            scenegraph->addChild(tileNode);
         }
     }
 
