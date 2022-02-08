@@ -677,6 +677,10 @@ int main(int argc, char** argv){
         //tasManager->createTlas(maxLod - 3, true)->compile(*context);
         context->record();
 
+        int framesAtSamePositionCount = 0;
+        auto oldEyePos = lookAt->eye;
+        bool terrainLodUpdatePerformed = false;
+
         int numFramesC = numFrames;
         while(viewer->advanceToNextFrame() && (numFrames < 0 || (numFrames--) > 0)){
             if(externalRenderings)
@@ -688,10 +692,19 @@ int main(int argc, char** argv){
                     accumulator->setFrameIndex(frame);
             }
 
+            if (lookAt->eye == oldEyePos) {
+                framesAtSamePositionCount++;
+            }
+            else {
+                oldEyePos = lookAt->eye;
+                framesAtSamePositionCount = 0;
+                terrainLodUpdatePerformed = false;
+            }
+
             bool resetSamples = false;
             //if (rayTracingPushConstantsValue->value().frameNumber == 200) {
-            if (guiValues->updateTerrainLodButtonPressed) {
-                std::cout << "200" << std::endl;
+            if (guiValues->updateTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && ! terrainLodUpdatePerformed)) {
+                std::cout << "update" << std::endl;
 
                 //auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 0, terrainTilesX, terrainTilesY, terrainTileLengthLodFactor);
                 //auto terrainImporter2 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod-1, terrainTextureLod-1, 0, terrainTilesX, terrainTilesY, terrainTileLengthLodFactor);
@@ -736,6 +749,8 @@ int main(int argc, char** argv){
                 CountTrianglesVisitor triangleCounter;
                 terrainScene->accept(triangleCounter);
                 guiValues->triangleCount = triangleCounter.triangleCount;
+
+                terrainLodUpdatePerformed = true;
             }
             if (rayTracingPushConstantsValue->value().frameNumber == -1000) {
                 std::cout << "1000" << std::endl;
