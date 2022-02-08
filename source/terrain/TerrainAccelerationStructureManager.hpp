@@ -13,6 +13,8 @@ public:
     void loadLodLevel(vsg::ref_ptr<TerrainImporter> terrainImporter, int lodLevel);
     vsg::ref_ptr<vsg::TopLevelAccelerationStructure> createTlas(int lodLevel, bool test);
     vsg::ref_ptr<vsg::Node> createScene(int lodLevel);
+    std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::Node>> createTlasAndScene(int minLod, vsg::dvec3 eyePosInTileCoords);
+    vsg::ref_ptr<vsg::Node> createCompleteScene(int minLod);
 private:
     uint32_t tileCountX;
     uint32_t tileCountY;

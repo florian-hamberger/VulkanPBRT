@@ -97,3 +97,56 @@ vsg::ref_ptr<vsg::Node> TerrainAccelerationStructureManager::createScene(int lod
     root->addChild(scenegraph);
     return root;
 }
+
+std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::Node>> TerrainAccelerationStructureManager::createTlasAndScene(int minLod, vsg::dvec3 eyePosInTileCoords)
+{
+    auto tlas = vsg::TopLevelAccelerationStructure::create(context->device);
+
+    auto sceneRoot = vsg::MatrixTransform::create();
+    sceneRoot->matrix = vsg::mat4();
+
+    auto scenegraph = vsg::StateGroup::create();
+
+    for (int y = 0; y < tileCountY; ++y) {
+        for (int x = 0; x < tileCountX; ++x) {
+            vsg::dvec3 tilePos(x, y, 0);
+            tilePos += vsg::dvec3(0.5, 0.5, 0.0);
+            double distance = vsg::length(tilePos - eyePosInTileCoords);
+            distance *= 0.1;
+            int lod = lodLevelCount - 1 - round(distance);
+            if (lod < minLod) lod = minLod;
+
+            auto geometryInstance = blasTiles->at(x, y, lod);
+            tlas->geometryInstances.push_back(geometryInstance);
+
+            auto tileNode = tileNodes->at(lod)->at(x, y);
+            scenegraph->addChild(tileNode);
+        }
+    }
+
+    sceneRoot->addChild(scenegraph);
+
+    return { tlas, sceneRoot };
+}
+
+vsg::ref_ptr<vsg::Node> TerrainAccelerationStructureManager::createCompleteScene(int minLod)
+{
+    auto root = vsg::MatrixTransform::create();
+    root->matrix = vsg::mat4();
+
+    auto scenegraph = vsg::StateGroup::create();
+
+    for (int currentLod = minLod; currentLod < lodLevelCount; ++currentLod) {
+    //for (int currentLod = lodLevelCount-1; currentLod >= minLod; --currentLod) {
+        auto currentLodTiles = tileNodes->at(currentLod);
+        for (int y = 0; y < tileCountY; ++y) {
+            for (int x = 0; x < tileCountX; ++x) {
+                auto tileNode = currentLodTiles->at(x, y);
+                scenegraph->addChild(tileNode);
+            }
+        }
+    }
+
+    root->addChild(scenegraph);
+    return root;
+}

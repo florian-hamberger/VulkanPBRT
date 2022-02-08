@@ -654,8 +654,7 @@ int main(int argc, char** argv){
         imageLayoutCompile.context.waitForCompletion();
 
         vsg::ref_ptr<vsg::TopLevelAccelerationStructure> tlas2;
-        tlas2 = tasManager->createTlas(-terrainTileLengthLodFactor, false);
-        auto terrainScene = tasManager->createScene(-terrainTileLengthLodFactor);
+        //auto terrainScene = tasManager->createCompleteScene(-terrainTileLengthLodFactor);
 
         context->buildAccelerationStructureCommands.clear();
         //tlas2->compile(*context);
@@ -702,6 +701,23 @@ int main(int argc, char** argv){
                 //tasManager->loadLodLevel(terrainImporter2, 1);
                 //tlas2 = tasManager->createTlas(-terrainTileLengthLodFactor);
                 //auto terrainScene = tasManager->createScene(-terrainTileLengthLodFactor);
+
+                //tlas2 = tasManager->createTlas(-terrainTileLengthLodFactor, false);
+                //auto terrainScene = tasManager->createScene(-terrainTileLengthLodFactor);
+
+                double scaleModifier = terrainScale * 20.0;
+                if (terrainTileLengthLodFactor > 0) {
+                    scaleModifier *= (1L << terrainTileLengthLodFactor);
+                } else {
+                    scaleModifier /= (1L << -terrainTileLengthLodFactor);
+                }
+
+                auto eyePosInTileCoords = lookAt->eye / scaleModifier;
+                eyePosInTileCoords.y *= -1;
+
+                auto pair = tasManager->createTlasAndScene(-terrainTileLengthLodFactor, eyePosInTileCoords);
+                tlas2 = pair.first;
+                auto terrainScene = pair.second;
 
                 context->buildAccelerationStructureCommands.clear();
 

@@ -125,9 +125,9 @@ private:
 
     float scaleModifier;
 
-    uint32_t TerrainImporter::getVertexIndex(int x, int y, int width);
-    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int xTile, int yTile, int tileStartX, int tileStartY, float heightOffset);
-    vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y);
+    uint32_t TerrainImporter::getVertexIndex(long x, long y, long width);
+    vsg::vec3 TerrainImporter::getHeightmapVertexPosition(long xTile, long yTile, long tileStartX, long tileStartY, float heightOffset);
+    vsg::vec2 TerrainImporter::getTextureCoordinate(long x, long y);
     vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
     vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> TerrainImporter::createTileNodes();
     TerrainImporter::State TerrainImporter::loadTextureMaterials();
