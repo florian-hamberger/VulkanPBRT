@@ -666,6 +666,7 @@ int main(int argc, char **argv)
             loaded_scene->accept(counter);
         guiValues->triangleCount = counter.triangleCount;
         guiValues->raysPerPixel = maxRecursionDepth * 2; //for each depth recursion one next event estimate is done
+        guiValues->automaticTerrainLodUpdate = true;
 
         auto viewport = vsg::ViewportState::create(0, 0, windowTraits->width, windowTraits->height);
         auto camera = vsg::Camera::create(perspective, lookAt, viewport);
@@ -757,9 +758,8 @@ int main(int argc, char **argv)
                 terrainLodUpdatePerformed = false;
             }
 
-            bool resetSamples = false;
             //if (rayTracingPushConstantsValue->value().frameNumber == 200) {
-            if (guiValues->updateTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && ! terrainLodUpdatePerformed)) {
+            if (guiValues->updateTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && ! terrainLodUpdatePerformed && guiValues->automaticTerrainLodUpdate)) {
                 std::cout << "update" << std::endl;
 
                 //auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 0, terrainTilesX, terrainTilesY, terrainTileLengthLodFactor);
@@ -800,7 +800,7 @@ int main(int argc, char **argv)
                 context->record();
                 //context->waitForCompletion();
 
-                resetSamples = true;
+                sample_index = 0;
 
                 CountTrianglesVisitor triangleCounter;
                 terrainScene->accept(triangleCounter);
@@ -819,7 +819,7 @@ int main(int argc, char **argv)
                 context->record();
                 //context->waitForCompletion();
 
-                resetSamples = true;
+                sample_index = 0;
 
                 CountTrianglesVisitor triangleCounter;
                 loaded_scene->accept(triangleCounter);

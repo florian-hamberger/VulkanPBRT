@@ -22,6 +22,7 @@ public:
         int height;
         uint32_t sampleNumber;
         bool updateTerrainLodButtonPressed;
+        bool automaticTerrainLodUpdate;
     };
 
     Gui(vsg::ref_ptr<Values> values): _values(values), _state({true})
@@ -46,7 +47,8 @@ public:
                     _values->raysPerPixel, ImGui::GetIO().Framerate * _values->raysPerPixel * _values->width * _values->height / 1.0e6);
         ImGui::Text("Samples per pixel: %d", _values->sampleNumber);
 
-        _values->updateTerrainLodButtonPressed = ImGui::Button("Update Terrain LOD", ImVec2(0, 0));
+        _values->updateTerrainLodButtonPressed = ImGui::Button("Update terrain LOD", ImVec2(0, 0));
+        ImGui::Checkbox("Automatic terrain LOD update", &_values->automaticTerrainLodUpdate);
 
         ImGui::End();
         return _state.active;
