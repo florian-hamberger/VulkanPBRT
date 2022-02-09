@@ -376,18 +376,17 @@ int main(int argc, char** argv){
         // raytracing pipeline setup
         uint32_t maxRecursionDepth = terrainMaxRecursionDepth;
         //vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
-        vsg::ref_ptr<TerrainPipeline> terrainPipeline;
+        vsg::ref_ptr<TerrainPipeline> pbrtPipeline;
         vsg::ref_ptr<vsg::TopLevelAccelerationStructure> tlas;
         if(!externalRenderings)
         {
             //pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
-            terrainPipeline = TerrainPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA, maxRecursionDepth);
+            pbrtPipeline = TerrainPipeline::create(loaded_scene, gBuffer, accumulationBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA, maxRecursionDepth);
 
             // setup tlas
             vsg::BuildAccelerationStructureTraversal buildAccelStruct(device);
             loaded_scene->accept(buildAccelStruct);
-            //pbrtPipeline->setTlas(buildAccelStruct.tlas);
-            terrainPipeline->setTlas(buildAccelStruct.tlas);
+            pbrtPipeline->setTlas(buildAccelStruct.tlas);
             tlas = buildAccelStruct.tlas;
         }
         else{
@@ -408,13 +407,9 @@ int main(int argc, char** argv){
         auto commands = vsg::Commands::create();
         auto offlineGBufferStager = OfflineGBuffer::create();
         auto offlineIlluminationBufferStager = OfflineIllumination::create();
-        //if (pbrtPipeline) {
-        //    pbrtPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
-        //    illuminationBuffer = pbrtPipeline->getIlluminationBuffer();
-        //}
-        if (terrainPipeline) {
-            terrainPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
-            illuminationBuffer = terrainPipeline->getIlluminationBuffer();
+        if (pbrtPipeline) {
+            pbrtPipeline->addTraceRaysToCommandGraph(commands, pushConstants);
+            illuminationBuffer = pbrtPipeline->getIlluminationBuffer();
         }
         else{
             if(offlineGBuffers.size() < numFrames || offlineIlluminations.size() < numFrames){
@@ -736,10 +731,10 @@ int main(int argc, char** argv){
 
                 //tlas2->compile(*context);
 
-                //terrainPipeline->updateScene(terrainImporter3->loadedScene, context);
-                terrainPipeline->updateScene(terrainScene, context);
+                //pbrtPipeline->updateScene(terrainImporter3->loadedScene, context);
+                pbrtPipeline->updateScene(terrainScene, context);
 
-                terrainPipeline->updateTlas(tlas2, context);
+                pbrtPipeline->updateTlas(tlas2, context);
 
                 context->record();
                 //context->waitForCompletion();
@@ -757,8 +752,8 @@ int main(int argc, char** argv){
 
                 context->buildAccelerationStructureCommands.clear();
 
-                terrainPipeline->updateScene(loaded_scene, context);
-                terrainPipeline->updateTlas(tlas, context);
+                pbrtPipeline->updateScene(loaded_scene, context);
+                pbrtPipeline->updateTlas(tlas, context);
 
                 context->record();
                 //context->waitForCompletion();

@@ -21,14 +21,20 @@ namespace
     };
 }
 
-PBRTPipeline::PBRTPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
-                 vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin) : 
-    width(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.width), 
-    height(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.height), 
-    maxRecursionDepth(2), 
+PBRTPipeline::PBRTPipeline(vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
+    vsg::ref_ptr<IlluminationBuffer> illuminationBuffer) :
+    width(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.width),
+    height(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.height),
+    maxRecursionDepth(2),
     accumulationBuffer(accumulationBuffer),
     illuminationBuffer(illuminationBuffer),
     gBuffer(gBuffer)
+{
+}
+
+PBRTPipeline::PBRTPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
+    vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin) :
+    PBRTPipeline(gBuffer, accumulationBuffer, illuminationBuffer)
 {
     if (writeGBuffer) assert(gBuffer);
     bool useExternalGBuffer = rayTracingRayOrigin == RayTracingRayOrigin::GBUFFER;
