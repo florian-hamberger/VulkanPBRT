@@ -21,9 +21,9 @@ namespace
     };
 }
 
-TerrainPipeline::TerrainPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
+TerrainPipeline::TerrainPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer,
                  vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin, uint32_t maxRecursionDepth) :
-    Inherit(gBuffer, accumulationBuffer, illuminationBuffer)
+    Inherit(gBuffer, illuminationBuffer)
 {
     this->maxRecursionDepth = maxRecursionDepth;
 
@@ -103,8 +103,6 @@ void TerrainPipeline::updateScene(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<vs
     illuminationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
     if (gBuffer)
         gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
-    if (accumulationBuffer)
-        accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
 
     std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
 
@@ -189,6 +187,4 @@ void TerrainPipeline::setupPipeline(vsg::Node *scene, bool useExternalGbuffer)
     illuminationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
     if (gBuffer)
         gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
-    if (accumulationBuffer)
-        accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
 }

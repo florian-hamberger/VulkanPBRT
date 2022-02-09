@@ -19,10 +19,9 @@ enum class RayTracingRayOrigin
 class PBRTPipeline : public vsg::Inherit<vsg::Object, PBRTPipeline>
 {
 public:
-    PBRTPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
+    PBRTPipeline(vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<IlluminationBuffer> illuminationBuffer);
+    PBRTPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer,
                  vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin);
-    PBRTPipeline(vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
-                 vsg::ref_ptr<IlluminationBuffer> illuminationBuffer);
 
     void setTlas(vsg::ref_ptr<vsg::AccelerationStructure> as);
     void compile(vsg::Context& context);
@@ -43,7 +42,6 @@ protected:
 
     // TODO: add buffers here
     vsg::ref_ptr<GBuffer> gBuffer;
-    vsg::ref_ptr<AccumulationBuffer> accumulationBuffer;
     vsg::ref_ptr<IlluminationBuffer> illuminationBuffer;
 
     //resources which have to be added as childs to a scenegraph for rendering
