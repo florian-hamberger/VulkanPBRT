@@ -22,19 +22,17 @@ namespace
 }
 
 TerrainPipeline::TerrainPipeline(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<GBuffer> gBuffer, vsg::ref_ptr<AccumulationBuffer> accumulationBuffer,
-                 vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin) : 
-    width(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.width), 
-    height(illuminationBuffer->illuminationImages[0]->imageInfoList[0]->imageView->image->extent.height), 
-    maxRecursionDepth(2), 
-    accumulationBuffer(accumulationBuffer),
-    illuminationBuffer(illuminationBuffer),
-    gBuffer(gBuffer)
+                 vsg::ref_ptr<IlluminationBuffer> illuminationBuffer, bool writeGBuffer, RayTracingRayOrigin rayTracingRayOrigin, uint32_t maxRecursionDepth) :
+    Inherit(gBuffer, accumulationBuffer, illuminationBuffer)
 {
+    this->maxRecursionDepth = maxRecursionDepth;
+
     if (writeGBuffer) assert(gBuffer);
     bool useExternalGBuffer = rayTracingRayOrigin == RayTracingRayOrigin::GBUFFER;
     setupPipeline(scene, useExternalGBuffer);
 }
-void TerrainPipeline::setTlas(vsg::ref_ptr<vsg::AccelerationStructure> as)
+
+void TerrainPipeline::updateTlas(vsg::ref_ptr<vsg::AccelerationStructure> as, vsg::ref_ptr<vsg::Context> context)
 {
     auto tlas = as.cast<vsg::TopLevelAccelerationStructure>();
     assert(tlas);
@@ -46,37 +44,76 @@ void TerrainPipeline::setTlas(vsg::ref_ptr<vsg::AccelerationStructure> as)
             tlas->geometryInstances[i]->shaderOffset = 1;
         tlas->geometryInstances[i]->flags = VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
     }
-    auto accelDescriptor = vsg::DescriptorAccelerationStructure::create(vsg::AccelerationStructures{as}, 0, 0);
+    auto accelDescriptor = vsg::DescriptorAccelerationStructure::create(vsg::AccelerationStructures{ as }, 0, 0);
+
+    //bindRayTracingDescriptorSet->descriptorSet->descriptors = vsg::Descriptors{ accelDescriptor };
+
+    auto descriptorSet = bindRayTracingDescriptorSet->descriptorSet;
+    int index = -1;
+    for (int i = 0; i < descriptorSet->descriptors.size(); ++i) {
+        if (descriptorSet->descriptors[i]->dstBinding == 0 && descriptorSet->descriptors[i]->dstArrayElement == 0 && descriptorSet->descriptors[i]->descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) {
+            index = i;
+
+            std::cout << "found descriptor to remove: " << index << std::endl;
+            break;
+        }
+    }
+    if (index >= 0) {
+        std::cout << "removing descriptor: " << index << std::endl;
+        descriptorSet->descriptors.erase(descriptorSet->descriptors.begin() + index);
+        //descriptors[index] = accelDescriptor;
+    }
+    //bindRayTracingDescriptorSet->descriptorSet->descriptors.clear();
+
     bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(accelDescriptor);
+
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
+
+    bindRayTracingDescriptorSet->descriptorSet->release();
+    bindRayTracingDescriptorSet->descriptorSet->compile(*context);
 }
-void TerrainPipeline::compile(vsg::Context &context)
-{
-    illuminationBuffer->compile(context);
+
+void TerrainPipeline::updateScene(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<vsg::Context> context) {
+    // parsing data from scene
+    TerrainRayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
+    scene->accept(buildDescriptorBinding);
+    opaqueGeometries = buildDescriptorBinding.isOpaque;
+
+    const int maxLights = 800;
+    if (buildDescriptorBinding.packedLights.size() > maxLights) lightSamplingMethod = LightSamplingMethod::SampleUniform;
+
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
+
+    bindRayTracingDescriptorSet->descriptorSet->descriptors.clear();
+
+    buildDescriptorBinding.updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
+
+    //// creating the constant infos uniform buffer object
+    auto constantInfos = ConstantInfosValue::create();
+    constantInfos->value().lightCount = buildDescriptorBinding.packedLights.size();
+    constantInfos->value().lightStrengthSum = buildDescriptorBinding.packedLights.back().inclusiveStrength;
+    constantInfos->value().maxRecursionDepth = maxRecursionDepth;
+    uint32_t uniformBufferBinding = vsg::ShaderStage::getSetBindingIndex(bindingMap, "Infos").second;
+    auto constantInfosDescriptor = vsg::DescriptorBuffer::create(constantInfos, uniformBufferBinding, 0);
+    bindRayTracingDescriptorSet->descriptorSet->descriptors.push_back(constantInfosDescriptor);
+
+    // update the descriptor sets
+    illuminationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    if (gBuffer)
+        gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+    if (accumulationBuffer)
+        accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
+
+    std::cout << "descriptors: " << bindRayTracingDescriptorSet->descriptorSet->descriptors.size() << std::endl;
+
 }
-void TerrainPipeline::updateImageLayouts(vsg::Context &context)
-{
-    illuminationBuffer->updateImageLayouts(context);
-}
-void TerrainPipeline::addTraceRaysToCommandGraph(vsg::ref_ptr<vsg::Commands> commandGraph, vsg::ref_ptr<vsg::PushConstants> pushConstants)
-{
-    commandGraph->addChild(bindRayTracingPipeline);
-    commandGraph->addChild(bindRayTracingDescriptorSet);
-    commandGraph->addChild(pushConstants);
-    auto traceRays = vsg::TraceRays::create();
-    traceRays->bindingTable = shaderBindingTable;
-    traceRays->width = width;
-    traceRays->height = height;
-    traceRays->depth = 1;
-    commandGraph->addChild(traceRays);
-}
-vsg::ref_ptr<IlluminationBuffer> TerrainPipeline::getIlluminationBuffer() const
-{
-    return illuminationBuffer;
-}
+
 void TerrainPipeline::setupPipeline(vsg::Node *scene, bool useExternalGbuffer)
 {
     // parsing data from scene
-    RayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
+    TerrainRayTracingSceneDescriptorCreationVisitor buildDescriptorBinding;
     scene->accept(buildDescriptorBinding);
     opaqueGeometries = buildDescriptorBinding.isOpaque;
 
@@ -154,68 +191,4 @@ void TerrainPipeline::setupPipeline(vsg::Node *scene, bool useExternalGbuffer)
         gBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
     if (accumulationBuffer)
         accumulationBuffer->updateDescriptor(bindRayTracingDescriptorSet, bindingMap);
-}
-vsg::ref_ptr<vsg::ShaderStage> TerrainPipeline::setupRaygenShader(std::string raygenPath, bool useExternalGBuffer)
-{
-    std::vector<std::string> defines; // needed defines for the correct illumination buffer
-    
-    // set different raygen shaders according to state of external gbuffer and illumination buffer type
-    if (useExternalGBuffer)
-    {
-        // TODO: implement things for external gBuffer
-        // raygenPath = "shaders/raygen.rgen.spv";
-    }
-    else
-    {
-        if (illuminationBuffer.cast<IlluminatonBufferFinalFloat>())
-        {
-            defines.push_back("FINAL_IMAGE");
-        }
-        else if (illuminationBuffer.cast<IlluminationBufferFinalDirIndir>())
-        {
-            // TODO:
-        }
-        else if (illuminationBuffer.cast<IlluminationBufferFinalDemodulated>())
-        {
-            defines.push_back("FINAL_IMAGE");
-            defines.push_back("DEMOD_ILLUMINATION");
-            defines.push_back("DEMOD_ILLUMINATION_SQUARED");
-        }
-        else if (illuminationBuffer.cast<IlluminationBufferDemodulated>())
-        {
-            defines.push_back("DEMOD_ILLUMINATION");
-            defines.push_back("DEMOD_ILLUMINATION_SQUARED");
-        }
-        else
-        {
-            throw vsg::Exception{"Error: TerrainPipeline::setupRaygenShader(...) Illumination buffer not supported."};
-        }
-    }
-    if (gBuffer)
-        defines.push_back("GBUFFER");
-    if (accumulationBuffer)
-        defines.push_back("PREV_GBUFFER");
-
-    switch(lightSamplingMethod){
-        case LightSamplingMethod::SampleSurfaceStrength:
-            defines.push_back("LIGHT_SAMPLE_SURFACE_STRENGTH");
-            break;
-        case LightSamplingMethod::SampleLightStrength:
-            defines.push_back("LIGHT_SAMPLE_LIGHT_STRENGTH");
-            break;
-        default:
-            break;
-    }
-
-    auto options = vsg::Options::create(vsgXchange::glsl::create());
-    auto raygenShader = vsg::ShaderStage::read(VK_SHADER_STAGE_RAYGEN_BIT_KHR, "main", raygenPath, options);
-    if(!raygenShader)
-        throw vsg::Exception{"Error: TerrainPipeline::setupRaygenShader() Could not load ray generation shader."};
-    auto compileHints = vsg::ShaderCompileSettings::create();
-    compileHints->vulkanVersion = VK_API_VERSION_1_2;
-    compileHints->target = vsg::ShaderCompileSettings::SPIRV_1_4;
-    compileHints->defines = defines;
-    raygenShader->module->hints = compileHints;
-
-    return raygenShader;
 }

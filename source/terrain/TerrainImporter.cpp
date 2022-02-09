@@ -1,8 +1,10 @@
 #include "TerrainImporter.hpp"
 
-TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod) :
-    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod) {
-
+TerrainImporter::TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test, uint32_t tileCountX, uint32_t tileCountY, int tileLengthLodFactor) :
+    heightmapPath(heightmapPath), texturePath(texturePath), terrainScale(terrainScale), terrainScaleVertexHeight(terrainScaleVertexHeight), terrainFormatLa2d(terrainFormatLa2d), textureFormatS3tc(textureFormatS3tc), heightmapLod(heightmapLod), textureLod(textureLod), test(test), tileCountX(tileCountX), tileCountY(tileCountY), tileLengthLodFactor(tileLengthLodFactor) {
+    if (heightmapLod < -tileLengthLodFactor) {
+        std::cout << "Error: TerrainImporter: heightmapLod < -tileLengthLodFactor!" << std::endl;
+    }
 }
 
 vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
@@ -181,136 +183,177 @@ vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain() {
     std::cout << "creating geometry...";
     auto terrain = createGeometry();
     std::cout << "done" << std::endl;
+    loadedScene = terrain;
     return terrain;
 }
 
-uint32_t TerrainImporter::getVertexIndex(int x, int y)
+uint32_t TerrainImporter::getVertexIndex(long x, long y, long width)
 {
-    return heightmapFullWidth * y + x;
+    return width * y + x;
 }
 
-vsg::vec3 TerrainImporter::getHeightmapVertexPosition(int x, int y) {
+vsg::vec3 TerrainImporter::getHeightmapVertexPosition(long xTile, long yTile, long tileStartX, long tileStartY, float heightOffset) {
     //std::cout << "getHeightmapVertexPosition(" << x << ", " << y << ")" << std::endl;
-    float heightmapValue;
-    vsg::vec3 scaleModifier(1.0f, 1.0f, 1.0f);
-    if (terrainFormatLa2d) {
-        heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y)];
-        scaleModifier.y *= heightmapActualWidth;
-        scaleModifier /= heightmapActualWidth;
+    long x = xTile + tileStartX;
+    long y = yTile + tileStartY;
 
-        scaleModifier.y *= 0.000019f;
-    }
-    else {
-        heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);
-        scaleModifier.y /= 256.0f; // normalize height to [0, 1)
-        scaleModifier.y *= heightmapFullWidth;
-        scaleModifier /= heightmapFullWidth;
 
-        scaleModifier.y *= 0.02f;
+    float heightmapValue = 0.0f;
+    if (x < heightmapFullWidth && y < heightmapFullHeight) {
+        if (terrainFormatLa2d) {
+            heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y, heightmapFullWidth)];
+            heightmapValue = heightmapValue + heightOffset;
+            heightmapValue *= heightmapActualWidth;
+
+            heightmapValue *= 0.000019f;
+        }
+        else {
+            heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);
+            heightmapValue /= 256.0f; // normalize height to [0, 1)
+            heightmapValue *= heightmapFullWidth;
+
+            heightmapValue *= 0.02f;
+        }
     }
-    scaleModifier.y *= terrainScaleVertexHeight;
-    scaleModifier *= terrainScale * 10.0f;
-    return vsg::vec3(float(x) * scaleModifier.x, heightmapValue * scaleModifier.y, float(y) * scaleModifier.z);
+    heightmapValue *= terrainScaleVertexHeight;
+    return vsg::vec3(float(xTile) * scaleModifier, -float(yTile) * scaleModifier, heightmapValue * scaleModifier);
 }
 
-vsg::vec2 TerrainImporter::getTextureCoordinate(int x, int y) {
+vsg::vec2 TerrainImporter::getTextureCoordinate(long x, long y) {
     //return vsg::vec2(float(x) / float(heightmapFullWidth), float(y) / float(heightmapFullHeight));
     float u = float(x) / float(heightmapActualWidth) * float(textureActualWidth) / float(textureFullWidth);
     float v = float(y) / float(heightmapActualHeight) * float(textureActualHeight) / float(textureFullHeight);
     return vsg::vec2(u, v);
+    //return vsg::vec2(u * 0.01, v * 0.01);
 }
 
 //using code from vsgXchange/assimp/assimp.cpp
 vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry()
 {
-    //auto pipelineLayout = _defaultPipeline->layout;
-
-    //auto state = createTestMaterial();
-    auto state = loadTextureMaterials();
-
     auto root = vsg::MatrixTransform::create();
-    root->matrix = vsg::rotate(vsg::PI * 0.5, 1.0, 0.0, 0.0) * vsg::rotate(vsg::PI * 0.75, 0.0, 1.0, 0.0);
+    root->matrix = vsg::rotate(vsg::PI * 0.5 * test, 0.0, 0.0, 1.0);
 
     auto scenegraph = vsg::StateGroup::create();
-    //scenegraph->add(vsg::BindGraphicsPipeline::create(_defaultPipeline));
-    //scenegraph->add(_defaultState);
 
-    //auto rootNode = scene->mRootNode;
-
-    //auto [node, parent] = nodes.top();
-
-    auto xform = vsg::MatrixTransform::create();
-    xform->matrix = vsg::dmat4();
-    scenegraph->addChild(xform);
-
-    //auto node = rootNode->mChildren[0];
-
-    int numPixels = heightmapFullWidth * heightmapFullHeight;
-
-    int numMeshes = 1;
-    for (int i = 0; i < numMeshes; ++i)
-    {
-        int mNumVertices = numPixels;
-        auto vertices = vsg::vec3Array::create(mNumVertices);
-        auto normals = vsg::vec3Array::create(mNumVertices);
-        auto texcoords = vsg::vec2Array::create(mNumVertices);
-        std::vector<uint32_t> indices;
-
-        for (int y = 0; y < heightmapFullHeight-1; y++) {
-            for (int x = 0; x < heightmapFullWidth-1; x++) {
-                vertices->at(getVertexIndex(x, y)) = getHeightmapVertexPosition(x, y);
-                texcoords->at(getVertexIndex(x, y)) = getTextureCoordinate(x, y);
-
-                if (x < heightmapFullWidth - 2 && y < heightmapFullHeight - 2) {
-                    indices.push_back(getVertexIndex(x, y));
-                    indices.push_back(getVertexIndex(x, y + 1));
-                    indices.push_back(getVertexIndex(x + 1, y));
-
-                    indices.push_back(getVertexIndex(x, y + 1));
-                    indices.push_back(getVertexIndex(x + 1, y + 1));
-                    indices.push_back(getVertexIndex(x + 1, y));
-                }
-            }
+    auto tileNodes = createTileNodes();
+    loadedTileNodes = tileNodes;
+    for (int tileY = 0; tileY < tileCountY; ++tileY) {
+        for (int tileX = 0; tileX < tileCountX; ++tileX) {
+            auto tileNode = tileNodes->at(tileX, tileY);
+            scenegraph->addChild(tileNode);
         }
-
-        for (int j = 0; j < mNumVertices; ++j)
-        {
-            normals->at(j) = vsg::vec3(0, 0, 0);
-            //texcoords->at(j) = vsg::vec2(0, 0);
-        }
-
-        vsg::ref_ptr<vsg::Data> vsg_indices;
-
-        if (indices.size() < std::numeric_limits<uint16_t>::max())
-        {
-            auto myindices = vsg::ushortArray::create(static_cast<uint16_t>(indices.size()));
-            std::copy(indices.begin(), indices.end(), myindices->data());
-            vsg_indices = myindices;
-        }
-        else
-        {
-            auto myindices = vsg::uintArray::create(static_cast<uint32_t>(indices.size()));
-            std::copy(indices.begin(), indices.end(), myindices->data());
-            vsg_indices = myindices;
-        }
-
-        auto stategroup = vsg::StateGroup::create();
-        xform->addChild(stategroup);
-
-        stategroup->add(state.first);
-        stategroup->add(state.second);
-
-        auto vid = vsg::VertexIndexDraw::create();
-        vid->assignArrays(vsg::DataList{vertices, normals, texcoords});
-        vid->assignIndices(vsg_indices);
-        vid->indexCount = indices.size();
-        vid->instanceCount = 1;
-        stategroup->addChild(vid);
     }
 
     root->addChild(scenegraph);
-
     return root;
+}
+
+vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> TerrainImporter::createTileNodes()
+{
+    auto tileNodes = vsg::Array2D<vsg::ref_ptr<vsg::Node>>::create(tileCountX, tileCountY);
+
+    auto state = loadTextureMaterials();
+
+    float heightOffset = -heightmapLa2dBuffer[0];
+
+    scaleModifier = terrainScale * 20.0f;
+    if (terrainFormatLa2d) {
+        scaleModifier /= (1L << heightmapLod);
+    }
+    else {
+        scaleModifier /= heightmapFullWidth;
+    }
+
+    long tileLength = 1L << (heightmapLod + tileLengthLodFactor);
+
+    for (int tileY = 0; tileY < tileCountY; ++tileY)
+    {
+        for (int tileX = 0; tileX < tileCountX; ++tileX)
+        {
+            //int tileStartX = (heightmapActualWidth - 1) * tileX / tileCountX;
+            //int tileEndX = (heightmapActualWidth - 1) * (tileX + 1) / tileCountX;
+            //int tileWidth = tileEndX - tileStartX + 1;
+
+            //int tileStartY = (heightmapActualHeight - 1) * tileY / tileCountY;
+            //int tileEndY = (heightmapActualHeight - 1) * (tileY + 1) / tileCountY;
+            //int tileHeight = tileEndY - tileStartY + 1;
+
+            long tileStartX = tileLength * tileX;
+            long tileEndX = tileLength * (tileX + 1);
+            long tileWidth = tileLength + 1;
+
+            long tileStartY = tileLength * tileY;
+            long tileEndY = tileLength * (tileY + 1);
+            long tileHeight = tileLength + 1;
+
+
+            long numPixels = tileWidth * tileHeight;
+            long mNumVertices = numPixels;
+            auto vertices = vsg::vec3Array::create(mNumVertices);
+            auto normals = vsg::vec3Array::create(mNumVertices);
+            auto texcoords = vsg::vec2Array::create(mNumVertices);
+            std::vector<uint32_t> indices;
+
+            for (long y = 0; y < tileHeight; ++y) {
+                for (long x = 0; x < tileWidth; ++x) {
+                    vertices->at(getVertexIndex(x, y, tileWidth)) = getHeightmapVertexPosition(x, y, tileStartX, tileStartY, heightOffset);
+                    texcoords->at(getVertexIndex(x, y, tileWidth)) = getTextureCoordinate(x + tileStartX, y + tileStartY);
+
+                    if (x < tileWidth - 1 && y < tileHeight - 1) {
+                        indices.push_back(getVertexIndex(x, y, tileWidth));
+                        indices.push_back(getVertexIndex(x, y + 1, tileWidth));
+                        indices.push_back(getVertexIndex(x + 1, y, tileWidth));
+
+                        indices.push_back(getVertexIndex(x, y + 1, tileWidth));
+                        indices.push_back(getVertexIndex(x + 1, y + 1, tileWidth));
+                        indices.push_back(getVertexIndex(x + 1, y, tileWidth));
+                    }
+                }
+            }
+
+            for (int j = 0; j < mNumVertices; ++j)
+            {
+                normals->at(j) = vsg::vec3(0, 0, 0);
+                //texcoords->at(j) = vsg::vec2(0, 0);
+            }
+
+            vsg::ref_ptr<vsg::Data> vsg_indices;
+
+            if (indices.size() < std::numeric_limits<uint16_t>::max())
+            {
+                auto myindices = vsg::ushortArray::create(static_cast<uint16_t>(indices.size()));
+                std::copy(indices.begin(), indices.end(), myindices->data());
+                vsg_indices = myindices;
+            }
+            else
+            {
+                auto myindices = vsg::uintArray::create(static_cast<uint32_t>(indices.size()));
+                std::copy(indices.begin(), indices.end(), myindices->data());
+                vsg_indices = myindices;
+            }
+
+
+            auto xform = vsg::MatrixTransform::create();
+            xform->matrix = vsg::translate(double(tileStartX) * scaleModifier, -double(tileStartY) * scaleModifier, 0.0);
+            //scenegraph->addChild(xform);
+            tileNodes->set(tileX, tileY, xform);
+
+            auto stategroup = vsg::StateGroup::create();
+            xform->addChild(stategroup);
+
+            stategroup->add(state.first);
+            stategroup->add(state.second);
+
+            auto vid = vsg::VertexIndexDraw::create();
+            vid->assignArrays(vsg::DataList{ vertices, normals, texcoords });
+            vid->assignIndices(vsg_indices);
+            vid->indexCount = indices.size();
+            vid->instanceCount = 1;
+            stategroup->addChild(vid);
+        }
+    }
+
+    return tileNodes;
 }
 
 //using code from vsgXchange/assimp/assimp.cpp

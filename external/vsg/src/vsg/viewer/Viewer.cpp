@@ -199,11 +199,11 @@ void Viewer::handleEvents()
     }
 }
 
-void Viewer::compile(ref_ptr<ResourceHints> hints)
+vsg::ref_ptr<vsg::CompileTraversal> Viewer::compile(ref_ptr<vsg::Device> device, ref_ptr<ResourceHints> hints)
 {
     if (recordAndSubmitTasks.empty())
     {
-        return;
+        return vsg::ref_ptr<vsg::CompileTraversal>();
     }
 
     bool containsPagedLOD = false;
@@ -337,6 +337,8 @@ void Viewer::compile(ref_ptr<ResourceHints> hints)
             task->databasePager->start();
         }
     }
+
+    return deviceResourceMap[device].compile;
 }
 
 void Viewer::assignRecordAndSubmitTaskAndPresentation(CommandGraphs in_commandGraphs)
