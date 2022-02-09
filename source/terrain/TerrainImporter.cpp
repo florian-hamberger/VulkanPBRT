@@ -444,7 +444,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
     if (isPbrMaterial)
     {
         // PBR path
-        PbrMaterial pbr;
+        vsg::PbrMaterial pbr;
 
         //std::vector<std::string> defines;
         //bool isTwoSided{ true };
@@ -452,19 +452,21 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
         bool hasPbrSpecularGlossiness = true;
 
         //pbr.baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        pbr.baseColorFactor = { 0.2f, 0.2f, 0.2f, 1.0f };
+        //pbr.baseColorFactor = { 0.2f, 0.2f, 0.2f, 1.0f };
         pbr.emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
-        pbr.diffuseFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        float diffuseFactorModifier = 0.5f;
+        pbr.diffuseFactor = { diffuseFactorModifier, diffuseFactorModifier, diffuseFactorModifier, 1.0f };
         //pbr.diffuseFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
         pbr.specularFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
         //pbr.specularFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
 
         pbr.metallicFactor = 1.0f;
         pbr.roughnessFactor = 1.0f;
         pbr.alphaMask = 1.0f;
         pbr.alphaMaskCutoff = 0.5f;
         pbr.indexOfRefraction = 1.0f;
-        pbr.category_id = 0;
+        pbr.categoryId = 0;
 
         if (hasPbrSpecularGlossiness)
         {
@@ -495,9 +497,6 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
             {10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} };
         vsg::Descriptors descList;
 
-        auto buffer = vsg::DescriptorBuffer::create(pbr.toData(), 10);
-        descList.push_back(buffer);
-
         SamplerData samplerImage;
         if (samplerImage = getTexture(); samplerImage.data.valid())
         {
@@ -505,6 +504,9 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
             descList.push_back(diffuseTexture);
             descriptorBindings.push_back({ 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
         }
+
+        auto buffer = vsg::DescriptorBuffer::create(vsg::PbrMaterialValue::create(pbr), 10);
+        descList.push_back(buffer);
 
         auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
         auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descList);
@@ -523,7 +525,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
     else
     {
         // Phong shading
-        Material mat;
+        vsg::PhongMaterial mat;
         //std::vector<std::string> defines;
 
 
@@ -533,7 +535,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
         mat.emissive = { 0.0f, 0.0f, 0.0f, 0.0f };
         mat.shininess = 0.0f;
         mat.specular = { 0.0f, 0.0f, 0.0f, 0.0f };
-        mat.category_id = 0;
+        mat.categoryId = 0;
 
         if (mat.shininess < 0.01f)
         {
@@ -558,7 +560,7 @@ TerrainImporter::State TerrainImporter::loadTextureMaterials()
             //    mat.diffuse = aiColor4D{ 1.0f, 1.0f, 1.0f, 1.0f };
         }
 
-        auto buffer = vsg::DescriptorBuffer::create(mat.toData(), 10);
+        auto buffer = vsg::DescriptorBuffer::create(vsg::PhongMaterialValue::create(mat), 10);
         descList.push_back(buffer);
 
         auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
