@@ -39,12 +39,12 @@ enum aiTextureMapMode
 class TerrainImporter : public vsg::Inherit<vsg::Object, TerrainImporter>
 {
 public:
-    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainVertexHeightToPixelRatio, bool terrainFormatLa2d, bool textureFormatS3tc, int heightmapLod, int textureLod, int test, uint32_t tileCountX, uint32_t tileCountY, int tileLengthLodFactor);
+    TerrainImporter(const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int tileLengthLodFactor, int heightmapLod, int textureLod, int test);
 
     vsg::ref_ptr<vsg::Node> TerrainImporter::importTerrain();
 
     vsg::ref_ptr<vsg::Node> loadedScene;
-    vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> loadedTileNodes;
+    vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> loadedTiles;
 
 private:
     using StateCommandPtr = vsg::ref_ptr<vsg::StateCommand>;
@@ -56,11 +56,9 @@ private:
     float terrainScaleVertexHeight;
     bool terrainFormatLa2d;
     bool textureFormatS3tc;
+    int tileLengthLodFactor;
     int heightmapLod;
     int textureLod;
-    uint32_t tileCountX;
-    uint32_t tileCountY;
-    int tileLengthLodFactor;
 
     int test;
 
@@ -90,7 +88,7 @@ private:
     vsg::vec3 TerrainImporter::getHeightmapVertexPosition(long xTile, long yTile, long tileStartX, long tileStartY, float heightOffset);
     vsg::vec2 TerrainImporter::getTextureCoordinate(long x, long y);
     vsg::ref_ptr<vsg::Node> TerrainImporter::createGeometry();
-    vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> TerrainImporter::createTileNodes();
+    vsg::ref_ptr<vsg::Array2D<vsg::ref_ptr<vsg::Node>>> TerrainImporter::createTiles();
     TerrainImporter::State TerrainImporter::loadTextureMaterials();
     std::string TerrainImporter::mat4ToString(vsg::mat4 m);
 };

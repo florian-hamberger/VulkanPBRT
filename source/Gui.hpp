@@ -21,8 +21,11 @@ public:
         int width;
         int height;
         uint32_t sampleNumber;
+        bool maxTerrainLodButtonPressed;
         bool updateTerrainLodButtonPressed;
         bool automaticTerrainLodUpdate;
+        int lodViewDistance;
+        int maxRecursionDepth;
     };
 
     Gui(vsg::ref_ptr<Values> values): _values(values), _state({true})
@@ -47,8 +50,11 @@ public:
                     _values->raysPerPixel, ImGui::GetIO().Framerate * _values->raysPerPixel * _values->width * _values->height / 1.0e6);
         ImGui::Text("Samples per pixel: %d", _values->sampleNumber);
 
+        _values->maxTerrainLodButtonPressed = ImGui::Button("Max terrain LOD", ImVec2(0, 0));
         _values->updateTerrainLodButtonPressed = ImGui::Button("Update terrain LOD", ImVec2(0, 0));
         ImGui::Checkbox("Automatic terrain LOD update", &_values->automaticTerrainLodUpdate);
+        ImGui::SliderInt("LOD view distance", &_values->lodViewDistance, 0, 100);
+        ImGui::SliderInt("Max recursion depth", &_values->maxRecursionDepth, 0, 100);
 
         ImGui::End();
         return _state.active;

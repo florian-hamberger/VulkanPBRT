@@ -19,6 +19,7 @@ public:
 
     void updateTlas(vsg::ref_ptr<vsg::AccelerationStructure> as, vsg::ref_ptr<vsg::Context> context);
     void updateScene(vsg::ref_ptr<vsg::Node> scene, vsg::ref_ptr<vsg::Context> context);
+    void updateMaxRecursionDepth(uint32_t maxRecursionDepth);
 protected:
     void setupPipeline(vsg::Node* scene, bool useExternalGBuffer);
 };

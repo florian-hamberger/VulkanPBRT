@@ -80,7 +80,7 @@ void AccelerationStructure::compile(Context& context)
         _geometryPrimitiveCounts.data(),
         &accelerationStructureBuildSizesInfo);
 
-    outputVkAccelerationStructureBuildSizesInfoKHR(&accelerationStructureBuildSizesInfo);
+    //outputVkAccelerationStructureBuildSizesInfoKHR(&accelerationStructureBuildSizesInfo);
 
     _buffer = vsg::createBufferAndMemory(context.device, accelerationStructureBuildSizesInfo.accelerationStructureSize,
                                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
