@@ -215,11 +215,49 @@ bool Context::record()
     {
         scratchBuffer = vsg::createBufferAndMemory(device, scratchBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+        bool lastAsWasBlas = false;
+        int blasCounter = 0;
         for (auto& command : buildAccelerationStructureCommands)
         {
+
+            if (command->_accelerationStructureInfo.type == 1)
+            {
+                if (lastAsWasBlas)
+                {
+                    std::cout << "\r" << std::flush;
+                }
+                else
+                {
+                    blasCounter = 0;
+                }
+
+                std::cout << "Building BLAS, count: " << blasCounter;
+                blasCounter++;
+                lastAsWasBlas = true;
+            }
+            else
+            {
+                if (lastAsWasBlas)
+                {
+                    std::cout << std::endl;
+                }
+
+                if (command->_accelerationStructureInfo.type == 0)
+                {
+                    std::cout << "Building TLAS" << std::endl;
+                    lastAsWasBlas = false;
+                }
+                else
+                {
+                    std::cout << "Building unkown AS, type: " << command->_accelerationStructureInfo.type << std::endl;
+                    lastAsWasBlas = false;
+                }
+            }
+
             command->setScratchBuffer(scratchBuffer);
             command->record(*commandBuffer);
         }
+        if (lastAsWasBlas) std::cout << std::endl;
     }
 
     vkEndCommandBuffer(*commandBuffer);

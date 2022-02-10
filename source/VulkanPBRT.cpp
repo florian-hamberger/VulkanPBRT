@@ -204,13 +204,13 @@ int main(int argc, char **argv)
         std::vector<vsg::ref_ptr<OfflineIllumination>> offlineIlluminations;
         std::vector<CameraMatrices> cameraMatrices;
         if (!terrainHeightmapFilename.empty()) {
-            auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainTileLengthLodFactor, terrainHeightmapLod, terrainTextureLod, 0);
-            loaded_scene = terrainImporter->importTerrain();
-            if (!loaded_scene) {
-                std::cout << "Terrain heightmap not found: " << terrainHeightmapFilename << std::endl;
-                return 1;
-            }
-            std::cout << "Terrain import successful" << std::endl;
+            //auto terrainImporter = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainTileLengthLodFactor, terrainTileLengthLodFactor < 0 ? -terrainTileLengthLodFactor : 0, 0, 0);
+            //loaded_scene = terrainImporter->importTerrain();
+            //if (!loaded_scene) {
+            //    std::cout << "Terrain heightmap not found: " << terrainHeightmapFilename << std::endl;
+            //    return 1;
+            //}
+            //std::cout << "Terrain import successful" << std::endl;
         }
         else if(!use_external_buffers){
             AI3DFrontImporter::ReadConfig(config_json);
@@ -408,15 +408,22 @@ int main(int argc, char **argv)
         uint32_t maxRecursionDepth = terrainMaxRecursionDepth;
         //vsg::ref_ptr<PBRTPipeline> pbrtPipeline;
         vsg::ref_ptr<TerrainPipeline> pbrtPipeline;
+        vsg::ref_ptr<TerrainAccelerationStructureManager> tasManager;
         if(!use_external_buffers)
         {
+            tasManager = TerrainAccelerationStructureManager::create(device, terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainTileLengthLodFactor, terrainHeightmapLod + 1);
+
+            auto [tlas, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, 1, false);
+            loaded_scene = terrainScene;
+
             //pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
             pbrtPipeline = TerrainPipeline::create(loaded_scene, gBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA, maxRecursionDepth);
 
             // setup tlas
-            vsg::BuildAccelerationStructureTraversal buildAccelStruct(device);
-            loaded_scene->accept(buildAccelStruct);
-            pbrtPipeline->setTlas(buildAccelStruct.tlas);
+            //vsg::BuildAccelerationStructureTraversal buildAccelStruct(device);
+            //loaded_scene->accept(buildAccelStruct);
+            //pbrtPipeline->setTlas(buildAccelStruct.tlas);
+            pbrtPipeline->setTlas(tlas);
         }
         else
         {
@@ -661,7 +668,8 @@ int main(int argc, char **argv)
             loaded_scene->accept(counter);
         guiValues->triangleCount = counter.triangleCount;
         guiValues->raysPerPixel = maxRecursionDepth * 2; //for each depth recursion one next event estimate is done
-        guiValues->automaticTerrainLodUpdate = true;
+        guiValues->updateTerrainLodOnStopping = true;
+        guiValues->updateTerrainLodOnMoving = false;
         guiValues->lodViewDistance = 10;
         guiValues->maxRecursionDepth = maxRecursionDepth;
 
@@ -683,13 +691,15 @@ int main(int argc, char **argv)
         else
             viewer->addEventHandler(vsg::Trackball::create(camera));
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
-        //viewer->compile();
-        auto compileTraversal = viewer->compile(device);
-        auto context = vsg::ref_ptr<vsg::Context>(&compileTraversal->context);
+        //viewer->compile(device);
+        auto compileTraversalViewer = viewer->compile(device);
+        auto compileTraversal2 = vsg::CompileTraversal::create(device);
+
+        auto context = vsg::ref_ptr<vsg::Context>(&compileTraversalViewer->context);
+        auto context2 = vsg::ref_ptr<vsg::Context>(&compileTraversal2->context);
 
 
-        auto tasManager = TerrainAccelerationStructureManager::create(context, terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainTileLengthLodFactor, terrainHeightmapLod + 1);
-        auto tlasTestVector = tasManager->buildAllLodTlas();
+        //auto tlasTestVector = tasManager->buildAllLodTlas();
 
 
         // waiting for image layout transitions
@@ -697,7 +707,7 @@ int main(int argc, char **argv)
 
         int framesAtSamePositionCount = 0;
         auto oldEyePos = lookAt->eye;
-        bool terrainLodUpdatePerformed = false;
+        bool terrainLodUpdatePerformed = true;
         int oldLodViewDistance = guiValues->lodViewDistance;
         int oldMaxRecursionDepth = guiValues->maxRecursionDepth;
 
@@ -720,15 +730,15 @@ int main(int argc, char **argv)
                 framesAtSamePositionCount++;
             }
             else {
-                oldEyePos = lookAt->eye;
                 framesAtSamePositionCount = 0;
                 terrainLodUpdatePerformed = false;
             }
 
             //if (rayTracingPushConstantsValue->value().frameNumber == 200) {
-            if (guiValues->updateTerrainLodButtonPressed || guiValues->maxTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && !terrainLodUpdatePerformed && guiValues->automaticTerrainLodUpdate) || guiValues->lodViewDistance != oldLodViewDistance || guiValues->maxRecursionDepth != oldMaxRecursionDepth) {
-                std::cout << "update" << std::endl;
-                std::cout << "buttons: " << guiValues->updateTerrainLodButtonPressed << " " << guiValues->maxTerrainLodButtonPressed << std::endl;
+            if (guiValues->updateTerrainLodButtonPressed || guiValues->maxTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && !terrainLodUpdatePerformed && guiValues->updateTerrainLodOnStopping) || guiValues->lodViewDistance != oldLodViewDistance || guiValues->maxRecursionDepth != oldMaxRecursionDepth 
+                    || (lookAt->eye != oldEyePos && guiValues->updateTerrainLodOnMoving)){
+
+                std::cout << "Updating terrain LOD" << std::endl;
 
                 //auto terrainImporter3 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod, terrainTextureLod, 0, terrainTilesX, terrainTilesY, terrainTileLengthLodFactor);
                 //auto terrainImporter2 = TerrainImporter::create(terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainHeightmapLod-1, terrainTextureLod-1, 0, terrainTilesX, terrainTilesY, terrainTileLengthLodFactor);
@@ -742,23 +752,15 @@ int main(int argc, char **argv)
                 //tlas2 = tasManager->createTlas(-terrainTileLengthLodFactor, false);
                 //auto terrainScene = tasManager->createScene(-terrainTileLengthLodFactor);
 
-                double scaleModifier = terrainScale * 20.0;
-                if (terrainTileLengthLodFactor > 0) {
-                    scaleModifier *= (1L << terrainTileLengthLodFactor);
-                } else {
-                    scaleModifier /= (1L << -terrainTileLengthLodFactor);
-                }
 
-                auto eyePosInTileCoords = lookAt->eye / scaleModifier;
-                eyePosInTileCoords.y *= -1;
-
-                auto pair = tasManager->createTlasAndScene(eyePosInTileCoords, guiValues->lodViewDistance, guiValues->maxTerrainLodButtonPressed);
-                auto tlas2 = pair.first;
-                auto terrainScene = pair.second;
+                auto [tlas2, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, guiValues->lodViewDistance, guiValues->maxTerrainLodButtonPressed);
 
                 context->buildAccelerationStructureCommands.clear();
 
-                //tlas2->compile(*context);
+                context2->buildAccelerationStructureCommands.clear();
+                tlas2->compile(*context2);
+                context2->record();
+                context2->waitForCompletion();
 
                 //pbrtPipeline->updateScene(terrainImporter3->loadedScene, context);
                 pbrtPipeline->updateScene(terrainScene, context);
@@ -802,6 +804,7 @@ int main(int argc, char **argv)
                 oldMaxRecursionDepth = guiValues->maxRecursionDepth;
             }
 
+            oldEyePos = lookAt->eye;
 
             
 

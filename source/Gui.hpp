@@ -23,7 +23,8 @@ public:
         uint32_t sampleNumber;
         bool maxTerrainLodButtonPressed;
         bool updateTerrainLodButtonPressed;
-        bool automaticTerrainLodUpdate;
+        bool updateTerrainLodOnStopping;
+        bool updateTerrainLodOnMoving;
         int lodViewDistance;
         int maxRecursionDepth;
     };
@@ -52,7 +53,8 @@ public:
 
         _values->maxTerrainLodButtonPressed = ImGui::Button("Max terrain LOD", ImVec2(0, 0));
         _values->updateTerrainLodButtonPressed = ImGui::Button("Update terrain LOD", ImVec2(0, 0));
-        ImGui::Checkbox("Automatic terrain LOD update", &_values->automaticTerrainLodUpdate);
+        ImGui::Checkbox("Update terrain LOD on stopping", &_values->updateTerrainLodOnStopping);
+        ImGui::Checkbox("Update terrain LOD on moving", &_values->updateTerrainLodOnMoving);
         ImGui::SliderInt("LOD view distance", &_values->lodViewDistance, 0, 100);
         ImGui::SliderInt("Max recursion depth", &_values->maxRecursionDepth, 0, 100);
 

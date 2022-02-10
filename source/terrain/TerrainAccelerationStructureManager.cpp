@@ -1,7 +1,7 @@
 #include "TerrainAccelerationStructureManager.hpp"
 
-TerrainAccelerationStructureManager::TerrainAccelerationStructureManager(vsg::ref_ptr<vsg::Context> context, const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int tileLengthLodFactor, int lodLevelCount) :
-    context(context),
+TerrainAccelerationStructureManager::TerrainAccelerationStructureManager(vsg::ref_ptr<vsg::Device> device, const vsg::Path& heightmapPath, const vsg::Path& texturePath, float terrainScale, float terrainScaleVertexHeight, bool terrainFormatLa2d, bool textureFormatS3tc, int tileLengthLodFactor, int lodLevelCount) :
+    device(device),
     heightmapPath(heightmapPath),
     texturePath(texturePath),
     terrainScale(terrainScale),
@@ -34,7 +34,7 @@ void TerrainAccelerationStructureManager::loadAllLodLevels()
         auto loadedScene = terrainImporter->importTerrain();
         nodeTiles->set(currentLod, terrainImporter->loadedTiles);
 
-        vsg::BuildAccelerationStructureTraversal buildAccelStruct(context->device);
+        vsg::BuildAccelerationStructureTraversal buildAccelStruct(device);
         loadedScene->accept(buildAccelStruct);
         auto tlas = buildAccelStruct.tlas;
 
@@ -56,9 +56,21 @@ void TerrainAccelerationStructureManager::loadAllLodLevels()
     }
 }
 
-std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::Node>> TerrainAccelerationStructureManager::createTlasAndScene(vsg::dvec3 eyePosInTileCoords, int lodViewDistance, bool maxLod = false)
+std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::Node>> TerrainAccelerationStructureManager::createTlasAndScene(vsg::dvec3 eyePos, int lodViewDistance, bool maxLod = false)
 {
-    auto tlas = vsg::TopLevelAccelerationStructure::create(context->device);
+
+    double scaleModifier = terrainScale * 20.0;
+    if (tileLengthLodFactor > 0) {
+        scaleModifier *= (1L << tileLengthLodFactor);
+    }
+    else {
+        scaleModifier /= (1L << -tileLengthLodFactor);
+    }
+
+    auto eyePosInTileCoords = eyePos / scaleModifier;
+    eyePosInTileCoords.y *= -1;
+
+    auto tlas = vsg::TopLevelAccelerationStructure::create(device);
 
     auto sceneRoot = vsg::MatrixTransform::create();
     sceneRoot->matrix = vsg::mat4();
@@ -92,7 +104,7 @@ std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::No
     return { tlas, sceneRoot };
 }
 
-std::vector < vsg::ref_ptr<vsg::TopLevelAccelerationStructure>> TerrainAccelerationStructureManager::buildAllLodTlas()
+std::vector < vsg::ref_ptr<vsg::TopLevelAccelerationStructure>> TerrainAccelerationStructureManager::buildAllLodTlas(vsg::ref_ptr<vsg::Context> context)
 {
     context->buildAccelerationStructureCommands.clear();
 
