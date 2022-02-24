@@ -231,8 +231,8 @@ bool Context::record()
                     blasCounter = 0;
                 }
 
-                std::cout << "Building BLAS, count: " << blasCounter;
                 blasCounter++;
+                std::cout << "Building BLAS, count: " << blasCounter;
                 lastAsWasBlas = true;
             }
             else

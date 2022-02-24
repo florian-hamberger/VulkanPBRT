@@ -27,9 +27,9 @@ namespace vsg
 
         AccelerationGeometries geometries;
 
-    protected:
         // compiled data
         std::vector<VkAccelerationStructureGeometryKHR> _vkGeometries;
+    protected:
     };
 
 } // namespace vsg

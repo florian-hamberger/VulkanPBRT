@@ -205,9 +205,9 @@ vsg::vec3 TerrainImporter::getHeightmapVertexPosition(long xTile, long yTile, lo
         if (terrainFormatLa2d) {
             heightmapValue = heightmapLa2dBuffer[getVertexIndex(x, y, heightmapFullWidth)];
             heightmapValue = heightmapValue + heightOffset;
-            heightmapValue *= heightmapActualWidth;
+            heightmapValue *= (1L << heightmapLod);
 
-            heightmapValue *= 0.000019f;
+            heightmapValue *= 0.000008075f;
         }
         else {
             heightmapValue = float(heightmap->data()[heightmap->index(x, y)].r);

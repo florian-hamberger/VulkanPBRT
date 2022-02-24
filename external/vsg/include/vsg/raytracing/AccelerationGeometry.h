@@ -32,16 +32,19 @@ namespace vsg
         operator VkAccelerationStructureGeometryKHR() const { return _geometry; }
 
         ref_ptr<Data> verts;
+        ref_ptr<Data> vertsOriginal;
         ref_ptr<Data> indices;
 
         void assignVertices(ref_ptr<vsg::Data> in_vertices);
         void assignIndices(ref_ptr<vsg::Data> in_indices);
 
+        bool geometryModified;
+
+        VkAccelerationStructureGeometryKHR _geometry;
     protected:
         // compiled data
         ref_ptr<BufferInfo> _vertexBuffer;
         ref_ptr<BufferInfo> _indexBuffer;
-        VkAccelerationStructureGeometryKHR _geometry;
     };
 
     using AccelerationGeometries = std::vector<ref_ptr<AccelerationGeometry>>;

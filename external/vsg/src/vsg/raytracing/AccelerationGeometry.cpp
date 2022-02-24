@@ -25,7 +25,8 @@ using namespace vsg;
 
 AccelerationGeometry::AccelerationGeometry(Allocator* allocator) :
     Inherit(allocator),
-    _geometry({})
+    _geometry({}),
+    geometryModified(false)
 {
     _geometry.geometry.triangles.vertexData.deviceAddress = VkDeviceAddress{0};
 }
@@ -33,6 +34,7 @@ AccelerationGeometry::AccelerationGeometry(Allocator* allocator) :
 void AccelerationGeometry::assignVertices(ref_ptr<vsg::Data> in_vertices)
 {
     verts = in_vertices;
+    vertsOriginal = in_vertices;
 }
 
 void AccelerationGeometry::assignIndices(ref_ptr<vsg::Data> in_indices)
