@@ -39,6 +39,7 @@ namespace vsg
         void assignIndices(ref_ptr<vsg::Data> in_indices);
 
         bool geometryModified;
+        ref_ptr<intArray2D> adjacentLods;
 
         VkAccelerationStructureGeometryKHR _geometry;
     protected:
