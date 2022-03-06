@@ -85,6 +85,19 @@ void AccelerationStructure::compile(Context& context)
     _buffer = vsg::createBufferAndMemory(context.device, accelerationStructureBuildSizesInfo.accelerationStructureSize,
                                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+    if (_accelerationStructureInfo.type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
+    {
+        context.totalBlasAsSize += accelerationStructureBuildSizesInfo.accelerationStructureSize;
+        context.totalBlasUpdateScratchSize += accelerationStructureBuildSizesInfo.updateScratchSize;
+        context.totalBlasBuildScratchSize += accelerationStructureBuildSizesInfo.buildScratchSize;
+    }
+    else if (_accelerationStructureInfo.type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR)
+    {
+        context.totalTlasAsSize += accelerationStructureBuildSizesInfo.accelerationStructureSize;
+        context.totalTlasUpdateScratchSize += accelerationStructureBuildSizesInfo.updateScratchSize;
+        context.totalTlasBuildScratchSize += accelerationStructureBuildSizesInfo.buildScratchSize;
+    }
+
     _accelerationStructureInfo.buffer = _buffer->vk(context.deviceID);
     _accelerationStructureInfo.size = accelerationStructureBuildSizesInfo.accelerationStructureSize;
     VkResult result = extensions->vkCreateAccelerationStructureKHR(*context.device, &_accelerationStructureInfo, nullptr, &_accelerationStructure);

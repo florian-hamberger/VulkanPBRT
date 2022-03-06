@@ -127,6 +127,13 @@ namespace vsg
         // RTX ray tracing
         VkDeviceSize scratchBufferSize;
         std::vector<ref_ptr<BuildAccelerationStructureCommand>> buildAccelerationStructureCommands;
+
+        uint64_t totalBlasAsSize;
+        uint64_t totalBlasUpdateScratchSize;
+        uint64_t totalBlasBuildScratchSize;
+        uint64_t totalTlasAsSize;
+        uint64_t totalTlasUpdateScratchSize;
+        uint64_t totalTlasBuildScratchSize;
     };
     VSG_type_name(vsg::Context);
 
