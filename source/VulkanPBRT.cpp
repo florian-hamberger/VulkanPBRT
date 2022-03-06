@@ -414,7 +414,7 @@ int main(int argc, char **argv)
         {
             tasManager = TerrainAccelerationStructureManager::create(device, terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainTileLengthLodFactor, terrainHeightmapLod + 1);
 
-            auto [tlas, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, 1, false);
+            auto [tlas, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, terrainLodViewDistance, false);
             loaded_scene = terrainScene;
 
             //pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
