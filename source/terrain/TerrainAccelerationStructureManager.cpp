@@ -72,9 +72,10 @@ int TerrainAccelerationStructureManager::calculateLod(int x, int y, vsg::dvec3 e
     else {
         vsg::dvec3 tilePos(x, y, 0);
         tilePos += vsg::dvec3(0.5, 0.5, 0.0);
+        //eyePosInTileCoords.z = 0.0;
         double distance = vsg::length(tilePos - eyePosInTileCoords);
-        distance /= lodViewDistance;
-        int lod = lodLevelCount - 1 - round(distance);
+        int lodDecrease = log2((distance / lodViewDistance) + 1);
+        int lod = lodLevelCount - 1 - lodDecrease;
         if (lod < minLod) {
             return minLod;
         } else {
