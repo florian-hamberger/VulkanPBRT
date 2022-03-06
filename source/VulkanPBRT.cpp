@@ -149,7 +149,7 @@ int main(int argc, char **argv)
         auto terrainTextureLod = arguments.value(terrainHeightmapLod, "-txl");
         auto terrainMaxRecursionDepth = arguments.value((uint32_t) 0, "-r");
         auto terrainTileLengthLodFactor = arguments.value((int)1, "--tile-length-lod-factor");
-        auto terrainLodViewDistance = arguments.value((int)10, "--lod-view-distance");
+        auto terrainLodViewDistance = arguments.value((int)10, "--lod-view-distance");;
 
         if (sceneFilename.empty() && !use_external_buffers && terrainHeightmapFilename.empty())
         {
@@ -414,7 +414,7 @@ int main(int argc, char **argv)
         {
             tasManager = TerrainAccelerationStructureManager::create(device, terrainHeightmapFilename, terrainTextureFilename, terrainScale, terrainScaleVertexHeight, terrainFormatLa2d, textureFormatS3tc, terrainTileLengthLodFactor, terrainHeightmapLod + 1);
 
-            auto [tlas, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, terrainLodViewDistance, false);
+            auto [tlas, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, terrainLodViewDistance);
             loaded_scene = terrainScene;
 
             //pbrtPipeline = PBRTPipeline::create(loaded_scene, gBuffer, illuminationBuffer, writeGBuffer, RayTracingRayOrigin::CAMERA);
@@ -735,8 +735,12 @@ int main(int argc, char **argv)
                 terrainLodUpdatePerformed = false;
             }
 
+            if (guiValues->maxTerrainLodButtonPressed) {
+                guiValues->lodViewDistance = 0;
+            }
+
             //if (rayTracingPushConstantsValue->value().frameNumber == 200) {
-            if (guiValues->updateTerrainLodButtonPressed || guiValues->maxTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && !terrainLodUpdatePerformed && guiValues->updateTerrainLodOnStopping) || guiValues->lodViewDistance != oldLodViewDistance || guiValues->maxRecursionDepth != oldMaxRecursionDepth 
+            if (guiValues->updateTerrainLodButtonPressed || (framesAtSamePositionCount > 0 && !terrainLodUpdatePerformed && guiValues->updateTerrainLodOnStopping) || guiValues->lodViewDistance != oldLodViewDistance || guiValues->maxRecursionDepth != oldMaxRecursionDepth 
                     || (lookAt->eye != oldEyePos && guiValues->updateTerrainLodOnMoving)){
 
                 std::cout << "Updating terrain LOD" << std::endl;
@@ -754,7 +758,7 @@ int main(int argc, char **argv)
                 //auto terrainScene = tasManager->createScene(-terrainTileLengthLodFactor);
 
 
-                auto [tlas2, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, guiValues->lodViewDistance, guiValues->maxTerrainLodButtonPressed);
+                auto [tlas2, terrainScene] = tasManager->createTlasAndScene(lookAt->eye, guiValues->lodViewDistance);
 
                 context->buildAccelerationStructureCommands.clear();
 

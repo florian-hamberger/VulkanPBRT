@@ -64,9 +64,9 @@ int TerrainAccelerationStructureManager::getTileArrayIndex(int x, int y, int lod
     return y * getTileLength(lod) + x;
 }
 
-int TerrainAccelerationStructureManager::calculateLod(int x, int y, vsg::dvec3 eyePosInTileCoords, int lodViewDistance, bool maxLod)
+int TerrainAccelerationStructureManager::calculateLod(int x, int y, vsg::dvec3 eyePosInTileCoords, int lodViewDistance)
 {
-    if (maxLod) {
+    if (lodViewDistance <= 0) {
         return lodLevelCount - 1;
     }
     else {
@@ -92,7 +92,7 @@ float TerrainAccelerationStructureManager::getVertexZPos(int x, int y, int lod, 
     return vertices->at(index).z;
 }
 
-void TerrainAccelerationStructureManager::updateTile(int x, int y, int lod, vsg::dvec3 eyePosInTileCoords, int lodViewDistance, bool maxLod, vsg::ref_ptr<vsg::GeometryInstance> geometryInstance) {
+void TerrainAccelerationStructureManager::updateTile(int x, int y, int lod, vsg::dvec3 eyePosInTileCoords, int lodViewDistance, vsg::ref_ptr<vsg::GeometryInstance> geometryInstance) {
     auto accelerationGeometry = geometryInstance->accelerationStructure->geometries[0];
 
     if (!accelerationGeometry->adjacentLods) {
@@ -124,7 +124,7 @@ void TerrainAccelerationStructureManager::updateTile(int x, int y, int lod, vsg:
             int ty = y + dy;
             if (tx < 0 || tx >= tileCountX || ty < 0 || ty >= tileCountY) continue;
 
-            int tLod = calculateLod(tx, ty, eyePosInTileCoords, lodViewDistance, maxLod);
+            int tLod = calculateLod(tx, ty, eyePosInTileCoords, lodViewDistance);
             if (accelerationGeometry->adjacentLods->at(dx + 1, dy + 1) != tLod) {
                 accelerationGeometry->adjacentLods->set(dx + 1, dy + 1, tLod);
                 geometryUpdateNecessary = true;
@@ -142,7 +142,7 @@ void TerrainAccelerationStructureManager::updateTile(int x, int y, int lod, vsg:
                 int ty = y + dy;
                 if (tx < 0 || tx >= tileCountX || ty < 0 || ty >= tileCountY) continue;
 
-                int tLod = calculateLod(tx, ty, eyePosInTileCoords, lodViewDistance, maxLod);
+                int tLod = calculateLod(tx, ty, eyePosInTileCoords, lodViewDistance);
                 if (tLod < lod) {
 
                     if (!geometryModified) {
@@ -221,7 +221,7 @@ void TerrainAccelerationStructureManager::updateTile(int x, int y, int lod, vsg:
 }
 
 
-std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::Node>> TerrainAccelerationStructureManager::createTlasAndScene(vsg::dvec3 eyePos, int lodViewDistance, bool maxLod = false)
+std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::Node>> TerrainAccelerationStructureManager::createTlasAndScene(vsg::dvec3 eyePos, int lodViewDistance)
 {
     double scaleModifier = terrainScale * 20.0;
     if (tileLengthLodFactor > 0) {
@@ -244,10 +244,10 @@ std::pair<vsg::ref_ptr<vsg::TopLevelAccelerationStructure>, vsg::ref_ptr<vsg::No
     int counter = 0;
     for (int y = 0; y < tileCountY; ++y) {
         for (int x = 0; x < tileCountX; ++x) {
-            int lod = calculateLod(x, y, eyePosInTileCoords, lodViewDistance, maxLod);
+            int lod = calculateLod(x, y, eyePosInTileCoords, lodViewDistance);
 
             auto geometryInstance = blasTiles->at(lod)->at(x, y);
-            updateTile(x, y, lod, eyePosInTileCoords, lodViewDistance, maxLod, geometryInstance);
+            updateTile(x, y, lod, eyePosInTileCoords, lodViewDistance, geometryInstance);
             if (geometryInstance->accelerationStructure->_vkGeometries.empty()) {
                 counter++;
             }
