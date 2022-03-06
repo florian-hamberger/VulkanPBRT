@@ -368,7 +368,8 @@ int main(int argc, char **argv)
         //create camera matrices
         auto perspective = vsg::Perspective::create(60, static_cast<double>(windowTraits->width) / static_cast<double>(windowTraits->height), .1, 1000);
         //auto lookAt = vsg::LookAt::create(vsg::dvec3(0.0, -3, 1), vsg::dvec3(0.0, 0.0, 1), vsg::dvec3(0.0, 0.0, 1.0));
-        auto lookAt = vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 1.0), vsg::dvec3(1.0, -1.0, 1.0), vsg::dvec3(0.0, 0.0, 1.0));
+        //auto lookAt = vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 1.0), vsg::dvec3(1.0, -1.0, 1.0), vsg::dvec3(0.0, 0.0, 1.0));
+        auto lookAt = vsg::LookAt::create(vsg::dvec3(2.46972, -2.56491, 0.590548), vsg::dvec3(2.81476, -3.41577, 0.194318), vsg::dvec3(0.0, 0.0, 1.0));
 
         // set push constants
         auto rayTracingPushConstantsValue = RayTracingPushConstantsValue::create();
@@ -782,6 +783,11 @@ int main(int argc, char **argv)
                 guiValues->triangleCount = triangleCounter.triangleCount;
 
                 terrainLodUpdatePerformed = true;
+
+                std::cout << "LookAt:"<< std::endl;
+                std::cout << "  eye: " << lookAt->eye << std::endl;
+                std::cout << "  center: " << lookAt->center << std::endl;
+                std::cout << "  up: " << lookAt->up << std::endl;
             }
             if (rayTracingPushConstantsValue->value().frameNumber == -1000) {
                 std::cout << "1000" << std::endl;
