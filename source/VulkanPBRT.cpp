@@ -16,6 +16,7 @@
 #include "terrain/TerrainImporter.hpp"
 #include "terrain/TerrainPipeline.hpp"
 #include "terrain/TerrainAccelerationStructureManager.hpp"
+#include "ScopeStopwatch.hpp"
 
 #include "Gui.hpp"
 
@@ -700,9 +701,15 @@ int main(int argc, char **argv)
         auto context = vsg::ref_ptr<vsg::Context>(&compileTraversalViewer->context);
         auto context2 = vsg::ref_ptr<vsg::Context>(&compileTraversal2->context);
 
-
         //auto tlasTestVector = tasManager->buildAllLodTlas();
 
+        std::cout << "Acceleration structure sizes:" << std::endl;
+        std::cout << "  totalBlasAsSize: " << context->totalBlasAsSize << std::endl;
+        std::cout << "  totalBlasUpdateScratchSize: " << context->totalBlasUpdateScratchSize << std::endl;
+        std::cout << "  totalBlasBuildScratchSize: " << context->totalBlasBuildScratchSize << std::endl;
+        std::cout << "  totalTlasAsSize: " << context->totalTlasAsSize << std::endl;
+        std::cout << "  totalTlasUpdateScratchSize: " << context->totalTlasUpdateScratchSize << std::endl;
+        std::cout << "  totalTlasBuildScratchSize: " << context->totalTlasBuildScratchSize << std::endl;
 
         // waiting for image layout transitions
         imageLayoutCompile.context.waitForCompletion();
@@ -764,9 +771,29 @@ int main(int argc, char **argv)
                 context->buildAccelerationStructureCommands.clear();
 
                 context2->buildAccelerationStructureCommands.clear();
+
+                context2->totalBlasAsSize = 0;
+                context2->totalBlasUpdateScratchSize = 0;
+                context2->totalBlasBuildScratchSize = 0;
+                context2->totalTlasAsSize = 0;
+                context2->totalTlasUpdateScratchSize = 0;
+                context2->totalTlasBuildScratchSize = 0;
+
                 tlas2->compile(*context2);
-                context2->record();
-                context2->waitForCompletion();
+
+                std::cout << "Acceleration structure sizes:" << std::endl;
+                std::cout << "  totalBlasAsSize: " << context2->totalBlasAsSize << std::endl;
+                std::cout << "  totalBlasUpdateScratchSize: " << context2->totalBlasUpdateScratchSize << std::endl;
+                std::cout << "  totalBlasBuildScratchSize: " << context2->totalBlasBuildScratchSize << std::endl;
+                std::cout << "  totalTlasAsSize: " << context2->totalTlasAsSize << std::endl;
+                std::cout << "  totalTlasUpdateScratchSize: " << context2->totalTlasUpdateScratchSize << std::endl;
+                std::cout << "  totalTlasBuildScratchSize: " << context2->totalTlasBuildScratchSize << std::endl;
+
+                {
+                    auto watch1 = ScopeStopwatch("Acceleration structure build time");
+                    context2->record();
+                    context2->waitForCompletion();
+                }
 
                 //pbrtPipeline->updateScene(terrainImporter3->loadedScene, context);
                 pbrtPipeline->updateScene(terrainScene, context);

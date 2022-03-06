@@ -96,6 +96,13 @@ Context::Context(Device* in_device, const ResourceRequirements& resourceRequirem
 {
     //semaphore = vsg::Semaphore::create(device);
     scratchMemory = ScratchMemory::create(4096);
+
+    totalBlasAsSize = 0;
+    totalBlasUpdateScratchSize = 0;
+    totalBlasBuildScratchSize = 0;
+    totalTlasAsSize = 0;
+    totalTlasUpdateScratchSize = 0;
+    totalTlasBuildScratchSize = 0;
 }
 
 Context::Context(const Context& context) :
@@ -113,6 +120,13 @@ Context::Context(const Context& context) :
     scratchBufferSize(context.scratchBufferSize)
 {
     scratchMemory = ScratchMemory::create(4096);
+
+    totalBlasAsSize = 0;
+    totalBlasUpdateScratchSize = 0;
+    totalBlasBuildScratchSize = 0;
+    totalTlasAsSize = 0;
+    totalTlasUpdateScratchSize = 0;
+    totalTlasBuildScratchSize = 0;
 }
 
 Context::~Context()
