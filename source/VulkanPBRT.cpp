@@ -149,6 +149,7 @@ int main(int argc, char **argv)
         auto terrainTextureLod = arguments.value(terrainHeightmapLod, "-txl");
         auto terrainMaxRecursionDepth = arguments.value((uint32_t) 0, "-r");
         auto terrainTileLengthLodFactor = arguments.value((int)1, "--tile-length-lod-factor");
+        auto terrainLodViewDistance = arguments.value((int)10, "--lod-view-distance");
 
         if (sceneFilename.empty() && !use_external_buffers && terrainHeightmapFilename.empty())
         {
@@ -670,7 +671,7 @@ int main(int argc, char **argv)
         guiValues->raysPerPixel = maxRecursionDepth * 2; //for each depth recursion one next event estimate is done
         guiValues->updateTerrainLodOnStopping = true;
         guiValues->updateTerrainLodOnMoving = false;
-        guiValues->lodViewDistance = 10;
+        guiValues->lodViewDistance = terrainLodViewDistance;
         guiValues->maxRecursionDepth = maxRecursionDepth;
 
         auto viewport = vsg::ViewportState::create(0, 0, windowTraits->width, windowTraits->height);
