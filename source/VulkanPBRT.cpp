@@ -29,7 +29,7 @@
 
 #include "../external/vsgXchange/src/assimp/3DFrontImporter.h"
 
-#define _DEBUG
+//#define _DEBUG
 
 class RayTracingPushConstantsValue : public vsg::Inherit<vsg::Value<RayTracingPushConstants>, RayTracingPushConstantsValue>
 {
